@@ -1,0 +1,51 @@
+from rest_framework import serializers
+from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostCampaignModel, PostMediaModel
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProfileModel
+        fields = '__all__'
+
+
+class PostMediaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostMediaModel
+        fields = "__all__"
+
+
+class ActionSerializer(serializers.ModelSerializer):
+    bot_info = serializers.SerializerMethodField()
+    medias = PostMediaSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ActionModel
+        fields = "__all__"
+
+    def get_bot_info(self, obj):
+        return ProfileSerializer(obj.bot).data
+
+
+class PostCampaignSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostCampaignModel
+        fields = "__all__"
+
+
+class CampaignSerializer(serializers.ModelSerializer):
+    posts_objects = serializers.SerializerMethodField()
+    actions_objects = serializers.SerializerMethodField()
+    bots_objects = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CampaignSocialMediaModel
+        fields = "__all__"
+
+    def get_posts_objects(self, obj):
+        return PostCampaignSerializer(obj.posts_objects.all(), many=True).data
+
+    def get_actions_objects(self, obj):
+        return ActionSerializer(obj.actions_objects.all(), many=True).data
+
+    def get_bots_objects(self, obj):
+        return ProfileSerializer(obj.bots.all(), many=True).data
