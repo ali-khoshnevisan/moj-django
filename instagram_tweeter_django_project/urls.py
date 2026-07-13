@@ -19,16 +19,14 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views
-from django.views.static import serve
 
 urlpatterns = [
-    path('update-task/', views.TaskUpdateManager.as_view()),
-    path('admin/', admin.site.urls),
-    path('ai/', include('ai.urls', namespace='accounts')),
-    path('accounts/', include('accounts.urls', namespace='ai')),
-    path('crawler/', include('crawler.urls', namespace='crawler')),
-    path('social-media/', include('social_media.urls', namespace='social-media')),
-    path('profiles/<path:path>', serve, {'document_root': r'C:\FirefoxProfiles'}),
+    path('api/update-task/', views.TaskUpdateManager.as_view()),
+    path('api/admin/', admin.site.urls),
+    path('api/ai/', include('ai.urls', namespace='accounts')),
+    path('api/accounts/', include('accounts.urls', namespace='ai')),
+    path('api/crawler/', include('crawler.urls', namespace='crawler')),
+    path('api/social-media/', include('social_media.urls', namespace='social-media')),
 ]
 
 if settings.DEBUG:
