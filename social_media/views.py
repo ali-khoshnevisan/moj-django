@@ -15,7 +15,7 @@ import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostMediaModel
 from .serializers import ProfileSerializer, ActionSerializer, CampaignSerializer
-
+from rest_framework.permissions import AllowAny
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -31,6 +31,7 @@ class ProfileFilter(django_filters.FilterSet):
 
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = ProfileModel.objects.all()
+    permission_classes = [AllowAny]
     serializer_class = ProfileSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
