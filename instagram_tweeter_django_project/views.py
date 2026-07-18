@@ -6,10 +6,21 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 from rest_framework.views import APIView, Response
 from rest_framework import serializers
+from rest_framework.permissions import BasePermission
 from ai.models import AIModel
 from crawler.models import AccountModel, PostModel, WebSinglePostModel
 from social_media.models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostCampaignModel
 
+
+class AllowCoreServerIP(BasePermission):
+    def has_permission(self, request, view):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0].strip()
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+
+        return ip == '91.107.232.169'
 
 class TaskSerializer(serializers.Serializer):
     task_id = serializers.CharField()
@@ -20,6 +31,8 @@ class TaskSerializer(serializers.Serializer):
 
 
 class TaskUpdateManager(APIView):
+    authentication_classes = []
+    permission_classes = [AllowCoreServerIP]
     serializer_class = TaskSerializer
     model_determiner_dict = {
         "chatgpt": AIModel,
@@ -50,7 +63,7 @@ class TaskUpdateManager(APIView):
         res_data = self.serializer_class(data=request.data)
         if not res_data.is_valid():
             print("not valid")
-            return Response(res_data.errors)
+            return Response(res_data.errors, status=400)
         valid_data = res_data.validated_data
 
         task_id = valid_data['task_id']
