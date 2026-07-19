@@ -9,6 +9,7 @@ from .models import AccountModel, PostModel, WebSinglePostModel, TelegramModel, 
 from .serializers import AccountSerializer, PostSerializer, WebSinglePostSerializer, TelegramBotSerializer, \
     TelegramSendPostSerializer
 from django.db.models import Case, When, Value, IntegerField
+from .tasks import telegram_worker_task
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -20,6 +21,23 @@ class AccountViewSet(viewsets.ModelViewSet):
     queryset = AccountModel.objects.all()
     serializer_class = AccountSerializer
     pagination_class = StandardResultsSetPagination
+
+    def perform_create(self, serializer):
+        account = serializer.save()
+
+        if account.platform == 'telegram' and account.status == 'requested':
+            task = telegram_worker_task.delay(account.id, account.url)
+
+            account.task_id = str(task.id)
+            account.save()
+
+    def perform_update(self, serializer):
+        account = serializer.save()
+
+        if account.platform == 'telegram' and account.status == 'requested' and not account.task_id:
+            task = telegram_worker_task.delay(account.id, account.url)
+            account.task_id = str(task.id)
+            account.save()
 
 
 class PostFilter(django_filters.FilterSet):

@@ -37,7 +37,7 @@ class TaskUpdateManager(APIView):
     model_determiner_dict = {
         "chatgpt": AIModel,
         "chatgpt-fast": AIModel,
-        "telegram-crawler": AccountModel,
+        # "telegram-crawler": AccountModel,
         "web-crawler": AccountModel,
         "web-crawler-single-post": PostModel,
         "web-crawler-single-post-test": WebSinglePostModel,
@@ -119,8 +119,8 @@ class TaskUpdateManager(APIView):
                 return self.ai_response
             case "chatgpt-fast":
                 return self.ai_response
-            case "telegram-crawler":
-                return self.crawler_response
+            # case "telegram-crawler":
+            #     return self.crawler_response
             case "web-crawler":
                 return self.crawler_response
             case "web-crawler-single-post":

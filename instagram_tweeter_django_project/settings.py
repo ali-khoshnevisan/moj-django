@@ -196,6 +196,14 @@ PROFILE_DIR = r"C:\FirefoxProfiles"
 PROFILES_CSV_PATH = r"C:\Users\Administrator\Desktop\social-media-programs\core\profiles.csv"
 PROXIES_CSV = r"C:\Users\Administrator\Desktop\social-media-programs\core\browser-proxies.csv"
 
+# Celery Configuration Options
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Tehran'
+
 # settings.py
 
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
