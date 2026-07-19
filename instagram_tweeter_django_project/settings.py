@@ -197,8 +197,8 @@ PROFILES_CSV_PATH = r"C:\Users\Administrator\Desktop\social-media-programs\core\
 PROXIES_CSV = r"C:\Users\Administrator\Desktop\social-media-programs\core\browser-proxies.csv"
 
 # Celery Configuration Options
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = 'redis://:%21%23ww.a.m_12@localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://:%21%23ww.a.m_12@localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
