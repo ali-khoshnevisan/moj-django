@@ -12,6 +12,7 @@ from django.core.files import File
 from bs4 import BeautifulSoup
 from celery import shared_task
 import re
+from requests.adapters import HTTPAdapter, Retry
 
 REQUEST_TIMEOUT = 15
 HEADERS = {
