@@ -25,6 +25,7 @@ class AIViewSet(viewsets.ModelViewSet):
             queue = queue + "-fast"
 
         try:
+            print('task', task)
             response = requests.post(
                 settings.CREATE_TASK_CORE_SERVICE_URL,
                 json={
@@ -33,6 +34,7 @@ class AIViewSet(viewsets.ModelViewSet):
                 },
                 timeout=10
             ).json()
+            print('response:', response)
 
             task.task_id = response.get('task_id')
             task.status = 'pending'
