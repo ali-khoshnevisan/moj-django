@@ -69,7 +69,7 @@ def crawler():
     _crawler("web", "requested", timedelta(seconds=0))
     _crawler("web", "enable", settings.WEB_CRAWLER_UPDATE_TIME)
     # _crawler("telegram", "requested", timedelta(seconds=0))
-    _crawler("telegram", "enable", settings.TELEGRAM_CRAWLER_UPDATE_TIME)
+    # _crawler("telegram", "enable", settings.TELEGRAM_CRAWLER_UPDATE_TIME)
     post_crawler()
 
 
