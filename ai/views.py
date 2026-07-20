@@ -39,6 +39,6 @@ class AIViewSet(viewsets.ModelViewSet):
             task.save()
 
         except Exception as e:
-            print(f"خطا در ارسال مستقیم به کور: {e}")
+            print(f"error in sending to core:{e}")
             task.status = 'failed'
             task.save()
