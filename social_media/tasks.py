@@ -77,6 +77,7 @@ def action_process():
                                            "data": {"url": task.url,
                                                     "text": task.text,
                                                     "medias": medias,
+                                                    "username": task.bot.username,
                                                     "firefox_json_path": json.loads(task.bot.firefox_json_path)}}).json()
             task_id = response['task_id']
             task.task_id = task_id
