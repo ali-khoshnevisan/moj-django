@@ -72,6 +72,7 @@ def action_process():
                 else:
                     media_url = urljoin("http://46.225.112.201:6688", media.media.url)
                 medias.append((media_url, media.media_type))
+                print('post medias: ', medias)
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                      json={"worker_type": f"{task.social_media}-{task.action}",
                                            "data": {"url": task.url,
