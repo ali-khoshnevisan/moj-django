@@ -20,7 +20,7 @@ class MyTokenSerializer(TokenObtainPairSerializer):
         user = authenticate(**credentials)
 
         if user is None:
-            raise AuthenticationFailed("Invalid credentials")
+            raise AuthenticationFailed("Email or Password is wrong")
 
         if not user.is_active:
             raise AuthenticationFailed("User inactive")
