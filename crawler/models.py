@@ -142,7 +142,7 @@ class TelegramModel(models.Model):
     channel = models.CharField(max_length=50)
     text_header = models.TextField(blank=True, null=True)
     text_footer = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=10, choices=telegram_model_status_choices)
+    status = models.CharField(max_length=10, choices=telegram_model_status_choices, default="enable")
 
 
 telegram_post_status_choices = (
