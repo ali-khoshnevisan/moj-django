@@ -10,21 +10,21 @@ import json
 def profile_process():
     print("START PROFILE SOCIAL MEDIA TASKS MANAGER")
     requested_profiles = ProfileModel.objects.filter(status='requested')
+    # for profile in requested_profiles:
+    #     try:
+    #         response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
+    #                                  json={"worker_type": f"{profile.social_media}-check-profile",
+    #                                        "data": {"url": profile.url}}).json()
+    #         task_id = response['task_id']
+    #         profile.task_id = task_id
+    #         profile.status = 'checking-profile'
+    #         profile.save()
+    #
+    #     except Exception as e:
+    #         print(e)
+
+    # grab_profiles = ProfileModel.objects.filter(status='grab-profile')
     for profile in requested_profiles:
-        try:
-            response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
-                                     json={"worker_type": f"{profile.social_media}-check-profile",
-                                           "data": {"url": profile.url}}).json()
-            task_id = response['task_id']
-            profile.task_id = task_id
-            profile.status = 'checking-profile'
-            profile.save()
-
-        except Exception as e:
-            print(e)
-
-    grab_profiles = ProfileModel.objects.filter(status='grab-profile')
-    for profile in grab_profiles:
         try:
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                      json={"worker_type": f"{profile.social_media}-profile",

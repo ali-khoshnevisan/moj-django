@@ -31,7 +31,7 @@ default_max_action_choices = 5
 
 
 class ProfileModel(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_profiles')
+    # user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_profiles')
     social_media = models.CharField(max_length=10, choices=social_media_choices)
     firefox_profile_path = models.CharField(max_length=1000, unique=True, blank=True, null=True)
     firefox_json_path = models.TextField(blank=True, null=True)
