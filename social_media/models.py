@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 from django.db import models
 from django.core.exceptions import ValidationError
-
+from django.conf import settings
 
 def upload_to_profile(instance, filename):
     return os.path.join(f'{instance.social_media}_files', 'profile', str(instance.pk), filename)
@@ -31,6 +31,7 @@ default_max_action_choices = 5
 
 
 class ProfileModel(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_profiles')
     social_media = models.CharField(max_length=10, choices=social_media_choices)
     firefox_profile_path = models.CharField(max_length=1000, unique=True, blank=True, null=True)
     firefox_json_path = models.TextField(blank=True, null=True)
@@ -90,6 +91,7 @@ action_status_choices = (
 
 
 class ActionModel(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_actions')
     social_media = models.CharField(max_length=10, choices=social_media_choices)
     url = models.URLField(blank=True, null=True)
     last_update = models.DateTimeField(auto_now=True)
@@ -170,6 +172,7 @@ class PostMediaModel(models.Model):
 
 
 class CampaignSocialMediaModel(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_campaigns')
     social_media = models.CharField(max_length=10, choices=social_media_choices)
     urls = models.JSONField(default=list)
     actions = models.JSONField(default=list)
