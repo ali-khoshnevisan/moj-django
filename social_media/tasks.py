@@ -28,7 +28,7 @@ def profile_process():
         try:
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                      json={"worker_type": f"{profile.social_media}-profile",
-                                           "data": {"url": profile.url}}).json()
+                                           "data": {"url": profile.url, "session": profile.firefox_json_path}}).json()
             task_id = response['task_id']
             profile.task_id = task_id
             profile.status = 'pending'
