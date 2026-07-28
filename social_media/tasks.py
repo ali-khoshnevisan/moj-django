@@ -29,7 +29,7 @@ def profile_process():
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                      json={"worker_type": f"{profile.social_media}-profile",
                                            "data": {"url": profile.url,
-                                                    "session": profile.firefox_json_path,
+                                                    "firefox_json_path": profile.firefox_json_path,
                                                     "username": profile.username}}).json()
             task_id = response['task_id']
             profile.task_id = task_id
@@ -39,20 +39,20 @@ def profile_process():
         except Exception as e:
             print(e)
 
-    added_profiles = ProfileModel.objects.filter(status='added', task_id__isnull=True,
-                                                 last_update__lte=timezone.now() -
-                                                                  settings.SOCIAL_MEDIA_PROFILE_CRAWLER_UPDATE_TIME)
-    for profile in added_profiles:
-        try:
-            response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
-                                     json={"worker_type": f"{profile.social_media}-profile",
-                                           "data": {"url": profile.url}}).json()
-            task_id = response['task_id']
-            profile.task_id = task_id
-            profile.save()
+    # added_profiles = ProfileModel.objects.filter(status='added', task_id__isnull=True,
+    #                                              last_update__lte=timezone.now() -
+    #                                                               settings.SOCIAL_MEDIA_PROFILE_CRAWLER_UPDATE_TIME)
+    # for profile in added_profiles:
+    #     try:
+    #         response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
+    #                                  json={"worker_type": f"{profile.social_media}-profile",
+    #                                        "data": {"url": profile.url}}).json()
+    #         task_id = response['task_id']
+    #         profile.task_id = task_id
+    #         profile.save()
 
-        except Exception as e:
-            print(e)
+        # except Exception as e:
+        #     print(e)
 
     print("FINISH PROFILE SOCIAL MEDIA TASKS MANAGER")
 
