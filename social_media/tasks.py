@@ -29,7 +29,7 @@ def profile_process():
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                      json={"worker_type": f"{profile.social_media}-profile",
                                            "data": {"url": profile.url,
-                                                    "firefox_json_path": profile.firefox_json_path,
+                                                    "firefox_json_path": json.loads(profile.firefox_json_path),
                                                     "username": profile.username}}).json()
             task_id = response['task_id']
             profile.task_id = task_id
