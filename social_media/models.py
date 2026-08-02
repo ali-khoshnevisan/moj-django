@@ -47,6 +47,9 @@ class ProfileModel(models.Model):
     last_update = models.DateTimeField(auto_now_add=True)
     max_actions_per_hour = models.JSONField(blank=True, null=True)
     task_id = models.UUIDField(blank=True, null=True)
+    # profile_country = models.CharField(max_length=50, null=True, blank=True)
+    # profile_port = models.IntegerField(null=True, blank=True)
+    # profile_path = models.TextField(null=True, blank=True)
 
     class Meta:
         ordering = ['-last_update']
@@ -97,7 +100,7 @@ class ActionModel(models.Model):
     last_update = models.DateTimeField(auto_now=True)
     action = models.CharField(max_length=20)
     status = models.CharField(max_length=10, default="requested", choices=action_status_choices)
-    bot = models.ForeignKey(ProfileModel, on_delete=models.SET_NULL, blank=False, null=True)
+    bot = models.ForeignKey(ProfileModel, on_delete=models.CASCADE, blank=False, null=True)
     text = models.TextField(blank=True, null=True)
     send_date = models.DateTimeField(default=timezone.now)
     result = models.JSONField(blank=True, null=True)
