@@ -47,9 +47,7 @@ class ProfileModel(models.Model):
     last_update = models.DateTimeField(auto_now_add=True)
     max_actions_per_hour = models.JSONField(blank=True, null=True)
     task_id = models.UUIDField(blank=True, null=True)
-    # profile_country = models.CharField(max_length=50, null=True, blank=True)
-    # profile_port = models.IntegerField(null=True, blank=True)
-    # profile_path = models.TextField(null=True, blank=True)
+    proxy = models.JSONField(blank=True, null=True)
 
     class Meta:
         ordering = ['-last_update']

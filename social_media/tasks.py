@@ -80,6 +80,11 @@ def action_process():
                                                     "text": task.text,
                                                     "medias": medias,
                                                     "username": task.bot.username,
+                                                    "proxy_host": task.bot.proxy.host,
+                                                    "proxy_username": task.bot.proxy.username,
+                                                    "proxy_pass": task.bot.proxy.password,
+                                                    "proxy_port": task.bot.proxy.port,
+                                                    "proxy_country": task.bot.proxy.country,
                                                     "firefox_json_path": json.loads(task.bot.firefox_json_path)}}).json()
             task_id = response['task_id']
             task.task_id = task_id
