@@ -16,6 +16,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostMediaModel
 from .serializers import ProfileSerializer, ActionSerializer, CampaignSerializer
 from rest_framework.permissions import AllowAny
+from accounts.permissions import IsActiveUser
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -38,26 +39,38 @@ class ProfileViewSet(viewsets.ModelViewSet):
     filterset_class = ProfileFilter
     skip_active_check = False
 
-    @action(detail=False, methods=["get"], url_path="max_id")
-    def max_id(self, request):
-        max_id = ProfileModel.objects.aggregate(Max('id'))['id__max']
-        if not max_id:
-            max_id = 0
+    # def get_queryset(self):
+    #     return ProfileModel.objects.filter(user=self.request.user)
+    #
+    # def perform_create(self, serializer):
+    #     serializer.save(user=self.request.user)
+    @action(detail=False, methods=["get"], url_path="allocate-port")
+    def allocate_port(self, request):
+        MIN_PORT = 10000
+        MAX_PORT = 30000
 
-        return Response({"max_id": int(max_id) + 1})
+        last_profile = ProfileModel.objects.exclude(proxy__isnull=True).order_by('-id').first()
+
+        last_port = MIN_PORT - 1
+
+        if last_profile and isinstance(last_profile.proxy, dict) and 'port' in last_profile.proxy:
+            try:
+                last_port = int(last_profile.proxy['port'])
+            except ValueError:
+                pass
+
+        next_port = last_port + 1
+
+        if next_port > MAX_PORT:
+            next_port = MIN_PORT
+
+        return Response({"allocated_port": next_port})
 
     @action(detail=False, methods=["get"], url_path="random-twitter-bot")
     def get_twitter_bot(self, request):
         bots = self.queryset.filter(social_media='twitter')
         bot = random.choice(bots)
         return Response(self.serializer_class(bot).data)
-
-    @action(detail=False, methods=["get"], url_path="countries", skip_active_check=True)
-    def available_countries(self, request):
-        with open(settings.PROXIES_CSV, 'r') as f:
-            proxies = list(csv.DictReader(f))
-
-        return Response(list(set([p["proxy_country"] for p in proxies])))
 
     @action(detail=False, methods=["post"], url_path='create-twitter-profile')
     def create_twitter_profile(self, request):
@@ -129,11 +142,18 @@ class ActionFilter(django_filters.FilterSet):
 
 
 class ActionViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsActiveUser]
     queryset = ActionModel.objects.all()
     serializer_class = ActionSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = ActionFilter
+
+    def get_queryset(self):
+        return ActionModel.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
     @action(detail=False, methods=["get"], url_path='count')
     def count(self, request):
@@ -149,12 +169,21 @@ class ActionViewSet(viewsets.ModelViewSet):
 
 
 class CampaignViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsActiveUser]
     queryset = CampaignSocialMediaModel.objects.all()
     serializer_class = CampaignSerializer
     pagination_class = StandardResultsSetPagination
 
+    def get_queryset(self):
+        return CampaignSocialMediaModel.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
 
 class PostSocialMediaView(APIView):
+    permission_classes = [IsActiveUser]
+
     def post(self, request):
         media_files = request.FILES.getlist("medias")
         media_types = request.data.getlist("media_types")
@@ -163,6 +192,7 @@ class PostSocialMediaView(APIView):
             return Response({"error": "media_files count must match media_types count"}, status=400)
 
         action = ActionModel.objects.create(
+            user = request.user,
             social_media=request.data.get("social_media"),
             action="post",
             bot_id=int(request.data.get("bot")),
