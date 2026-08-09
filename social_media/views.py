@@ -149,11 +149,11 @@ class ActionViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_class = ActionFilter
 
-    def get_queryset(self):
-        return ActionModel.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+    # def get_queryset(self):
+    #     return ActionModel.objects.filter(user=self.request.user)
+    #
+    # def perform_create(self, serializer):
+    #     serializer.save(user=self.request.user)
 
     @action(detail=False, methods=["get"], url_path='count')
     def count(self, request):
@@ -174,11 +174,11 @@ class CampaignViewSet(viewsets.ModelViewSet):
     serializer_class = CampaignSerializer
     pagination_class = StandardResultsSetPagination
 
-    def get_queryset(self):
-        return CampaignSocialMediaModel.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+    # def get_queryset(self):
+    #     return CampaignSocialMediaModel.objects.filter(user=self.request.user)
+    #
+    # def perform_create(self, serializer):
+    #     serializer.save(user=self.request.user)
 
 
 class PostSocialMediaView(APIView):
