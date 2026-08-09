@@ -192,7 +192,7 @@ class PostSocialMediaView(APIView):
             return Response({"error": "media_files count must match media_types count"}, status=400)
 
         action = ActionModel.objects.create(
-            user = request.user,
+            # user = request.user,
             social_media=request.data.get("social_media"),
             action="post",
             bot_id=int(request.data.get("bot")),
