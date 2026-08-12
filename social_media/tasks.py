@@ -105,17 +105,25 @@ def crawl_campaign():
     requested_campaigns = CampaignSocialMediaModel.objects.filter(status='requested', working=True)
     for campaign in requested_campaigns:
         try:
+            bot = campaign.bots.first()
+            print("BOT:", bot)
+            print("PROXY:", bot.proxy)
+            print("PROXY TYPE:", type(bot.proxy))
+
+            if not bot:
+                raise Exception(f"Campaign {campaign.id} has no bot")
+
             task_ids = []
             for url in campaign.urls:
                 response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                          json={"worker_type": f"{campaign.social_media}-profile",
                                                "data": {"url": url,
                                                         "firefox_json_path": json.loads(campaign.bots.first().firefox_json_path),
-                                                        "username": campaign.bots.first().username,
-                                                        "proxy_host": campaign.bots.first().proxy['host'],
-                                                        "proxy_username": campaign.bots.first().proxy['username'],
-                                                        "proxy_pass": campaign.bots.first().proxy['password'],
-                                                        "proxy_port": campaign.bots.first().proxy['port']}}).json(),
+                                                        "username": bot.username,
+                                                        "proxy_host": bot.proxy['host'],
+                                                        "proxy_username": bot.proxy['username'],
+                                                        "proxy_pass": bot.proxy['password'],
+                                                        "proxy_port": bot.proxy['port']}}).json(),
                 task_id = response['task_id']
                 task_ids.append(task_id)
 
