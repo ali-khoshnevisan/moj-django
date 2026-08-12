@@ -132,7 +132,7 @@ def crawl_campaign():
                                                         "proxy_host": bot.proxy['host'],
                                                         "proxy_username": bot.proxy['username'],
                                                         "proxy_pass": bot.proxy['password'],
-                                                        "proxy_port": bot.proxy['port']}}).json(),
+                                                        "proxy_port": bot.proxy['port']}}).json()
                 task_id = response['task_id']
                 task_ids.append(task_id)
 
