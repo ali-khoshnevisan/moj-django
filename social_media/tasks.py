@@ -30,10 +30,10 @@ def profile_process():
                                      json={"worker_type": f"{profile.social_media}-profile",
                                            "data": {"url": profile.url,
                                                     "firefox_json_path": json.loads(profile.firefox_json_path),
-                                                    "proxy_host": profile.proxy.host,
-                                                    "proxy_username": profile.proxy.username,
-                                                    "proxy_pass": profile.proxy.password,
-                                                    "proxy_port": profile.proxy.port,
+                                                    "proxy_host": profile.proxy['host'],
+                                                    "proxy_username": profile.proxy['username'],
+                                                    "proxy_pass": profile.proxy['password'],
+                                                    "proxy_port": profile.proxy['port'],
                                                     "username": profile.username}}).json()
             task_id = response['task_id']
             profile.task_id = task_id
@@ -78,18 +78,18 @@ def action_process():
                     media_url = urljoin("http://46.225.112.201:6688", media.media.url)
                 medias.append((media_url, media.media_type))
                 print('post medias: ', medias)
+            task_id = response['task_id']
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                      json={"worker_type": f"{task.social_media}-{task.action}",
                                            "data": {"url": task.url,
                                                     "text": task.text,
                                                     "medias": medias,
                                                     "username": task.bot.username,
-                                                    "proxy_host": task.bot.proxy.host,
-                                                    "proxy_username": task.bot.proxy.username,
-                                                    "proxy_pass": task.bot.proxy.password,
-                                                    "proxy_port": task.bot.proxy.port,
+                                                    "proxy_host": task.bot.proxy['host'],
+                                                    "proxy_username": task.bot.proxy['username'],
+                                                    "proxy_pass": task.bot.proxy['password'],
+                                                    "proxy_port": task.bot.proxy['port'],
                                                     "firefox_json_path": json.loads(task.bot.firefox_json_path)}}).json()
-            task_id = response['task_id']
             task.task_id = task_id
             task.status = 'pending'
             task.save()
@@ -112,10 +112,10 @@ def crawl_campaign():
                                                "data": {"url": url,
                                                         "firefox_json_path": json.loads(campaign.bots.first().firefox_json_path),
                                                         "username": campaign.bots.first().username,
-                                                        "proxy_host": campaign.bots.first().proxy.host,
-                                                        "proxy_username": campaign.bots.first().proxy.username,
-                                                        "proxy_pass": campaign.bots.first().proxy.password,
-                                                        "proxy_port": campaign.bots.first().proxy.port}}).json(),
+                                                        "proxy_host": campaign.bots.first().proxy['host'],
+                                                        "proxy_username": campaign.bots.first().proxy['username'],
+                                                        "proxy_pass": campaign.bots.first().proxy['password'],
+                                                        "proxy_port": campaign.bots.first().proxy['port']}}).json(),
                 task_id = response['task_id']
                 task_ids.append(task_id)
 
