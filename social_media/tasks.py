@@ -6,7 +6,6 @@ from django.utils import timezone
 from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostCampaignModel
 from ai.models import AIModel
 import json
-import traceback
 
 def profile_process():
     print("START PROFILE SOCIAL MEDIA TASKS MANAGER")
@@ -79,7 +78,6 @@ def action_process():
                     media_url = urljoin("http://46.225.112.201:6688", media.media.url)
                 medias.append((media_url, media.media_type))
                 print('post medias: ', medias)
-            task_id = response['task_id']
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                      json={"worker_type": f"{task.social_media}-{task.action}",
                                            "data": {"url": task.url,
@@ -91,6 +89,7 @@ def action_process():
                                                     "proxy_pass": task.bot.proxy['password'],
                                                     "proxy_port": task.bot.proxy['port'],
                                                     "firefox_json_path": json.loads(task.bot.firefox_json_path)}}).json()
+            task_id = response['task_id']
             task.task_id = task_id
             task.status = 'pending'
             task.save()
@@ -107,17 +106,6 @@ def crawl_campaign():
     for campaign in requested_campaigns:
         try:
             bot = campaign.bots.first()
-
-            print("BOT:", bot)
-            print("PROXY:", bot.proxy)
-            print("PROXY TYPE:", type(bot.proxy))
-            print("FIREFOX JSON:", bot.firefox_json_path)
-            print("FIREFOX TYPE:", type(bot.firefox_json_path))
-
-            firefox_json = json.loads(bot.firefox_json_path)
-
-            print("FIREFOX LOADED:", firefox_json)
-            print("FIREFOX LOADED TYPE:", type(firefox_json))
 
             if not bot:
                 raise Exception(f"Campaign {campaign.id} has no bot")
@@ -141,7 +129,6 @@ def crawl_campaign():
             campaign.save()
 
         except Exception as e:
-            traceback.print_exc()
             print(e)
 
     pending_campaigns = CampaignSocialMediaModel.objects.filter(status='pending', working=True)
