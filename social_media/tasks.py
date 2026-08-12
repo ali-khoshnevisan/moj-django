@@ -30,6 +30,10 @@ def profile_process():
                                      json={"worker_type": f"{profile.social_media}-profile",
                                            "data": {"url": profile.url,
                                                     "firefox_json_path": json.loads(profile.firefox_json_path),
+                                                    "proxy_host": profile.proxy.host,
+                                                    "proxy_username": profile.proxy.username,
+                                                    "proxy_pass": profile.proxy.password,
+                                                    "proxy_port": profile.proxy.port,
                                                     "username": profile.username}}).json()
             task_id = response['task_id']
             profile.task_id = task_id
@@ -105,7 +109,13 @@ def crawl_campaign():
             for url in campaign.urls:
                 response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                          json={"worker_type": f"{campaign.social_media}-profile",
-                                               "data": {"url": url}}).json()
+                                               "data": {"url": url,
+                                                        "firefox_json_path": json.loads(campaign.bots.first().firefox_json_path),
+                                                        "username": campaign.bots.first().username,
+                                                        "proxy_host": campaign.bots.first().proxy.host,
+                                                        "proxy_username": campaign.bots.first().proxy.username,
+                                                        "proxy_pass": campaign.bots.first().proxy.password,
+                                                        "proxy_port": campaign.bots.first().proxy.port}}).json(),
                 task_id = response['task_id']
                 task_ids.append(task_id)
 
