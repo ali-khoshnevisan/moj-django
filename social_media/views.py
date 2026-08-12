@@ -44,6 +44,15 @@ class ProfileViewSet(viewsets.ModelViewSet):
     #
     # def perform_create(self, serializer):
     #     serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=["get"], url_path="max_id")
+    def max_id(self, request):
+        max_id = ProfileModel.objects.aggregate(Max('id'))['id__max']
+        if not max_id:
+            max_id = 0
+
+        return Response({"max_id": int(max_id) + 1})
+
     @action(detail=False, methods=["get"], url_path="allocate-port")
     def allocate_port(self, request):
         MIN_PORT = 10000
@@ -60,6 +69,8 @@ class ProfileViewSet(viewsets.ModelViewSet):
                 pass
 
         next_port = last_port + 1
+
+        print('next_port', next_port)
 
         if next_port > MAX_PORT:
             next_port = MIN_PORT
