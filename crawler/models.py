@@ -1,8 +1,9 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+# from django.conf import settings
 from asgiref.sync import async_to_sync
-from telegram import Bot
+from telegram import Bot, InputMediaPhoto, InputMediaVideo, InputMediaDocument, InputMediaAudio
 
 platform_choices = (
     ('telegram', 'telegram'),
@@ -27,7 +28,8 @@ valid_web_configs = set(default_web_config.keys())
 
 
 class AccountModel(models.Model):
-    url = models.URLField(unique=True)
+    # user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='crawler_accounts')
+    url = models.URLField()
     platform = models.CharField(max_length=10, choices=platform_choices)
     config = models.JSONField(blank=True, null=True)
     status = models.CharField(max_length=20, default="requested", choices=account_status_choices)
@@ -37,6 +39,7 @@ class AccountModel(models.Model):
 
     class Meta:
         ordering = ['-last_update']
+        # unique_together = ('user', 'url')
 
     def clean(self):
         if self.platform == "web":
@@ -100,6 +103,7 @@ web_single_post_status_choices = (
 
 
 class WebSinglePostModel(models.Model):
+    # user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='web_single_posts')
     url = models.URLField()
     config = models.JSONField()
     title = models.TextField(blank=True, null=True)
@@ -138,6 +142,7 @@ telegram_model_status_choices = (
 
 
 class TelegramModel(models.Model):
+    # user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='telegram_bots')
     token = models.CharField(max_length=100, unique=True)
     channel = models.CharField(max_length=50)
     text_header = models.TextField(blank=True, null=True)
@@ -151,11 +156,10 @@ telegram_post_status_choices = (
     ('failed', 'failed')
 )
 
-
-async def send_bot(token, channel, text=None, media=None, media_type=None):
+async def send_bot(token, channel, text=None, medias=None):
     bot = Bot(token=token)
 
-    if not media:
+    if not medias:
         await bot.send_message(
             chat_id=channel,
             text=text,
@@ -164,41 +168,39 @@ async def send_bot(token, channel, text=None, media=None, media_type=None):
         )
         return
 
-    if media_type == "photo":
-        await bot.send_photo(
-            chat_id=channel,
-            photo=media,
-            caption=text,
-            parse_mode="HTML"
-        )
+    if len(medias) == 1:
+        media = medias[0]['file']
+        media_type = medias[0]['type']
 
-    elif media_type == "video":
-        await bot.send_video(
-            chat_id=channel,
-            video=media,
-            caption=text,
-            parse_mode="HTML"
-        )
-
-    elif media_type == "document":
-        await bot.send_document(
-            chat_id=channel,
-            document=media,
-            caption=text,
-            parse_mode="HTML"
-        )
-
-    elif media_type == "audio":
-        await bot.send_audio(
-            chat_id=channel,
-            audio=media,
-            caption=text,
-            parse_mode="HTML"
-        )
+        if media_type == "photo":
+            await bot.send_photo(chat_id=channel, photo=media, caption=text, parse_mode="HTML")
+        elif media_type == "video":
+            await bot.send_video(chat_id=channel, video=media, caption=text, parse_mode="HTML")
+        elif media_type == "document":
+            await bot.send_document(chat_id=channel, document=media, caption=text, parse_mode="HTML")
+        elif media_type == "audio":
+            await bot.send_audio(chat_id=channel, audio=media, caption=text, parse_mode="HTML")
+        else:
+            raise ValueError(f"unsupported media type: {media_type}")
 
     else:
-        raise ValueError(f"unsupported media type: {media_type}")
+        media_group = []
+        for index, m in enumerate(medias):
+            media_file = m['file']
+            media_type = m['type']
+            # کپشن فقط برای اولین فایل تنظیم می‌شود
+            caption = text if index == 0 else None
 
+            if media_type == "photo":
+                media_group.append(InputMediaPhoto(media=media_file, caption=caption, parse_mode="HTML"))
+            elif media_type == "video":
+                media_group.append(InputMediaVideo(media=media_file, caption=caption, parse_mode="HTML"))
+            elif media_type == "document":
+                media_group.append(InputMediaDocument(media=media_file, caption=caption, parse_mode="HTML"))
+            elif media_type == "audio":
+                media_group.append(InputMediaAudio(media=media_file, caption=caption, parse_mode="HTML"))
+
+        await bot.send_media_group(chat_id=channel, media=media_group)
 
 def telegram_media_path(instance, filename):
     return f'accounts/post_{instance.pk}/{filename}'
@@ -215,8 +217,8 @@ telegram_media_choices = (
 class TelegramSendPost(models.Model):
     bot = models.ForeignKey(TelegramModel, on_delete=models.CASCADE)
     text = models.TextField()
-    media = models.FileField(upload_to=telegram_media_path, blank=True, null=True)
-    media_type = models.CharField(max_length=10, choices=telegram_media_choices, blank=True, null=True)
+    # media = models.FileField(upload_to=telegram_media_path, blank=True, null=True)
+    # media_type = models.CharField(max_length=10, choices=telegram_media_choices, blank=True, null=True)
     send_date = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=10, choices=telegram_post_status_choices, default='requested')
     error_message = models.CharField(max_length=1000, blank=True, null=True)
@@ -233,8 +235,10 @@ class TelegramSendPost(models.Model):
         if self.bot.text_footer:
             text = text + "\n" + self.bot.text_footer
 
+        medias = [{'file': m.media, 'type': m.media_type} for m in self.medias.all()]
+
         try:
-            async_to_sync(send_bot)(self.bot.token, self.bot.channel, text, self.media, self.media_type)
+            async_to_sync(send_bot)(self.bot.token, self.bot.channel, text, medias)
             self.status = 'sent'
         except Exception as e:
             print(e)
@@ -244,3 +248,8 @@ class TelegramSendPost(models.Model):
             self.status = "failed"
 
         self.save()
+
+class TelegramPostMedia(models.Model):
+    post = models.ForeignKey(TelegramSendPost, related_name='medias', on_delete=models.CASCADE)
+    media = models.FileField(upload_to=telegram_media_path)
+    media_type = models.CharField(max_length=10, choices=telegram_media_choices)
