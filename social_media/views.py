@@ -2,7 +2,7 @@ import csv
 import random
 import os
 import zipfile
-
+from rest_framework import status
 import requests
 from django.db.models import Max
 from django.conf import settings
@@ -165,6 +165,41 @@ class ActionViewSet(viewsets.ModelViewSet):
     #
     # def perform_create(self, serializer):
     #     serializer.save(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        bots = data.get('bot')
+
+        # بررسی می‌کنیم که آیا فیلد bot به صورت لیست (آرایه) از فرانت ارسال شده است یا خیر
+        if isinstance(bots, list):
+            if not bots:
+                return Response(
+                    {"bot": ["You must select at least one bot."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            created_actions = []
+            errors = []
+
+            for bot_id in bots:
+                action_data = data.copy()
+
+                action_data['bot'] = bot_id
+
+                serializer = self.get_serializer(data=action_data)
+
+                if serializer.is_valid():
+                    self.perform_create(serializer)
+                    created_actions.append(serializer.data)
+                else:
+                    errors.append({"bot_id": bot_id, "errors": serializer.errors})
+
+            if errors and not created_actions:
+                return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response(created_actions, status=status.HTTP_201_CREATED)
+
+        return super().create(request, *args, **kwargs)
 
     @action(detail=False, methods=["get"], url_path='count')
     def count(self, request):

@@ -219,6 +219,10 @@ class PostCampaignModel(models.Model):
     task_id = models.UUIDField(blank=True, null=True)
 
     def clean(self):
+        if not self.comments:
+            self.comments = []
+            return
+
         cleaned_comments = []
 
         for comment in self.comments:
@@ -231,7 +235,8 @@ class PostCampaignModel(models.Model):
                         f"https://www.instagram.com/{comment['username']}/"
                     )
                     cleaned_comments.append(comment)
-                    self.comments = cleaned_comments
+
+        self.comments = cleaned_comments
 
     def save(self, *args, **kwargs):
         self.full_clean()
