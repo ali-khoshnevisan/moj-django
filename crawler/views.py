@@ -142,8 +142,8 @@ class TelegramSendPostView(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-    def get_queryset(self):
-        return TelegramSendPost.objects.filter(bot__user=self.request.user)
+    # def get_queryset(self):
+    #     return TelegramSendPost.objects.filter(bot__user=self.request.user)
 
     @action(detail=False, methods=["get"], url_path="last-post")
     def last_post(self, request):
