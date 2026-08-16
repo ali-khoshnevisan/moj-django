@@ -299,6 +299,7 @@ class TaskUpdateManager(APIView):
             profile.save()
 
     def action_response(self, task, status, result):
+        print('like action status:', status)
         task.status = status
         task.task_id = None
         task.save()
