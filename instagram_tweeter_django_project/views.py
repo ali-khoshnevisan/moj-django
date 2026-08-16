@@ -81,6 +81,7 @@ class TaskUpdateManager(APIView):
         status = valid_data['status']
         print('like action status:', status)
         result = valid_data['result']
+        print('like action result:', result)
         model = self.model_determiner(worker_type)
         if not model:
             return Response({"message": "This worker type is not allowed"}, status=400)
@@ -300,7 +301,6 @@ class TaskUpdateManager(APIView):
             profile.save()
 
     def action_response(self, task, status, result):
-        print('like action status:', status)
         task.status = status
         task.task_id = None
         task.save()
