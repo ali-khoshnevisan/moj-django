@@ -22,6 +22,7 @@ from . import views
 
 urlpatterns = [
     path('api/update-task/', views.TaskUpdateManager.as_view()),
+    path('api/dashboard/summary/', views.DashboardSummaryView.as_view(), name='dashboard-summary'),
     path('api/admin/', admin.site.urls),
     path('api/ai/', include('ai.urls', namespace='accounts')),
     path('api/accounts/', include('accounts.urls', namespace='ai')),
