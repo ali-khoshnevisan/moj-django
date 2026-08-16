@@ -79,6 +79,7 @@ class TaskUpdateManager(APIView):
         task_id = valid_data['task_id']
         worker_type = valid_data['worker_type']
         status = valid_data['status']
+        print('like action status:', status)
         result = valid_data['result']
         model = self.model_determiner(worker_type)
         if not model:
