@@ -5,9 +5,9 @@ from . import views
 app_name = 'social-media'
 
 router = DefaultRouter()
-router.register(r'profile', views.ProfileViewSet)
-router.register(r'actions', views.ActionViewSet)
-router.register(r'campaign', views.CampaignViewSet)
+router.register(r'profile', views.ProfileViewSet, basename='profile')
+router.register(r'actions', views.ActionViewSet, basename='action')
+router.register(r'campaign', views.CampaignViewSet, basename='campaign')
 
 urlpatterns = [
     path('', include(router.urls), name='router'),
