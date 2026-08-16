@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-# from django.conf import settings
+from django.conf import settings
 from asgiref.sync import async_to_sync
 from telegram import Bot, InputMediaPhoto, InputMediaVideo, InputMediaDocument, InputMediaAudio
 
@@ -28,7 +28,7 @@ valid_web_configs = set(default_web_config.keys())
 
 
 class AccountModel(models.Model):
-    # user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='crawler_accounts')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='crawler_accounts')
     url = models.URLField()
     platform = models.CharField(max_length=10, choices=platform_choices)
     config = models.JSONField(blank=True, null=True)
@@ -39,7 +39,7 @@ class AccountModel(models.Model):
 
     class Meta:
         ordering = ['-last_update']
-        # unique_together = ('user', 'url')
+        unique_together = ('user', 'url')
 
     def clean(self):
         if self.platform == "web":
@@ -103,7 +103,7 @@ web_single_post_status_choices = (
 
 
 class WebSinglePostModel(models.Model):
-    # user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='web_single_posts')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='web_single_posts')
     url = models.URLField()
     config = models.JSONField()
     title = models.TextField(blank=True, null=True)
@@ -142,7 +142,7 @@ telegram_model_status_choices = (
 
 
 class TelegramModel(models.Model):
-    # user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='telegram_bots')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='telegram_bots')
     token = models.CharField(max_length=100, unique=True)
     channel = models.CharField(max_length=50)
     text_header = models.TextField(blank=True, null=True)

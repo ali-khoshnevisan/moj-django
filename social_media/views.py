@@ -13,9 +13,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.exceptions import PermissionDenied
 from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostMediaModel
 from .serializers import ProfileSerializer, ActionSerializer, CampaignSerializer
-from rest_framework.permissions import AllowAny
 from accounts.permissions import IsActiveUser
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -31,22 +31,24 @@ class ProfileFilter(django_filters.FilterSet):
 
 
 class ProfileViewSet(viewsets.ModelViewSet):
-    queryset = ProfileModel.objects.all()
-    permission_classes = [AllowAny]
+    permission_classes = [IsActiveUser]
     serializer_class = ProfileSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = ProfileFilter
     skip_active_check = False
 
-    # def get_queryset(self):
-    #     return ProfileModel.objects.filter(user=self.request.user)
-    #
-    # def perform_create(self, serializer):
-    #     serializer.save(user=self.request.user)
+    def get_queryset(self):
+        return ProfileModel.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
     @action(detail=False, methods=["get"], url_path="max_id")
     def max_id(self, request):
+        # NOTE: kept global (not filtered by user) since this just hands out
+        # the next free primary key for naming firefox profile folders on
+        # disk, a machine-wide resource, not per-user data.
         max_id = ProfileModel.objects.aggregate(Max('id'))['id__max']
         if not max_id:
             max_id = 0
@@ -55,6 +57,8 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="allocate-port")
     def allocate_port(self, request):
+        # NOTE: also kept global — ports are a shared machine resource across
+        # all profiles, not something scoped to one user.
         MIN_PORT = 10000
         MAX_PORT = 30000
 
@@ -79,7 +83,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="random-twitter-bot")
     def get_twitter_bot(self, request):
-        bots = self.queryset.filter(social_media='twitter')
+        bots = self.get_queryset().filter(social_media='twitter')
         bot = random.choice(bots)
         return Response(self.serializer_class(bot).data)
 
@@ -98,7 +102,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
         data.update(firefox_profile_path=firefox_profile_path)
         ser_data = self.serializer_class(data)
         if ser_data.is_valid():
-            account = ser_data.save()
+            account = ser_data.save(user=request.user)
             with open(settings.PROFILES_CSV_PATH, 'a', newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow([firefox_profile_path, int(account.pk) + 50000, country])
@@ -154,17 +158,19 @@ class ActionFilter(django_filters.FilterSet):
 
 class ActionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsActiveUser]
-    queryset = ActionModel.objects.all()
     serializer_class = ActionSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = ActionFilter
 
-    # def get_queryset(self):
-    #     return ActionModel.objects.filter(user=self.request.user)
-    #
-    # def perform_create(self, serializer):
-    #     serializer.save(user=self.request.user)
+    def get_queryset(self):
+        return ActionModel.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        bot = serializer.validated_data.get('bot')
+        if bot is not None and bot.user_id != self.request.user.id:
+            raise PermissionDenied("You don't own this bot.")
+        serializer.save(user=self.request.user)
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -189,8 +195,11 @@ class ActionViewSet(viewsets.ModelViewSet):
                 serializer = self.get_serializer(data=action_data)
 
                 if serializer.is_valid():
-                    self.perform_create(serializer)
-                    created_actions.append(serializer.data)
+                    try:
+                        self.perform_create(serializer)
+                        created_actions.append(serializer.data)
+                    except PermissionDenied as exc:
+                        errors.append({"bot_id": bot_id, "errors": {"bot": [str(exc)]}})
                 else:
                     errors.append({"bot_id": bot_id, "errors": serializer.errors})
 
@@ -208,23 +217,30 @@ class ActionViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="last-post")
     def last_post(self, request):
-        print(request.query_params.get("social-media"))
-        last_post = self.queryset.filter(status__in=["requested", "pending"], action="post",
-                                         social_media=request.query_params.get("social-media")).order_by("send_date").first()
-        return Response({"last_post": self.serializer_class(last_post).data})
+        last_post = self.get_queryset().filter(
+            status__in=["requested", "pending"],
+            action="post",
+            social_media=request.query_params.get("social-media")
+        ).order_by("send_date").first()
+        return Response({
+            "last_post": self.serializer_class(last_post).data if last_post else None
+        })
 
 
 class CampaignViewSet(viewsets.ModelViewSet):
     permission_classes = [IsActiveUser]
-    queryset = CampaignSocialMediaModel.objects.all()
     serializer_class = CampaignSerializer
     pagination_class = StandardResultsSetPagination
 
-    # def get_queryset(self):
-    #     return CampaignSocialMediaModel.objects.filter(user=self.request.user)
-    #
-    # def perform_create(self, serializer):
-    #     serializer.save(user=self.request.user)
+    def get_queryset(self):
+        return CampaignSocialMediaModel.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        bots = serializer.validated_data.get('bots', [])
+        foreign_bots = [bot.id for bot in bots if bot.user_id != self.request.user.id]
+        if foreign_bots:
+            raise PermissionDenied(f"You don't own bot(s): {foreign_bots}")
+        serializer.save(user=self.request.user)
 
 
 class PostSocialMediaView(APIView):
@@ -237,11 +253,15 @@ class PostSocialMediaView(APIView):
         if len(media_files) != len(media_types):
             return Response({"error": "media_files count must match media_types count"}, status=400)
 
+        bot_id = int(request.data.get("bot"))
+        if not ProfileModel.objects.filter(id=bot_id, user=request.user).exists():
+            return Response({"bot": "Invalid bot for this user."}, status=400)
+
         action = ActionModel.objects.create(
-            # user = request.user,
+            user=request.user,
             social_media=request.data.get("social_media"),
             action="post",
-            bot_id=int(request.data.get("bot")),
+            bot_id=bot_id,
             text=str(request.data.get("text")),
             working=False
         )

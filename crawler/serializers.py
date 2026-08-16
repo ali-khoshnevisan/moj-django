@@ -7,7 +7,8 @@ class AccountSerializer(serializers.ModelSerializer):
         model = AccountModel
         fields = '__all__'
         extra_kwargs = {
-            'task_id': {'write_only': True}
+            'task_id': {'write_only': True},
+            'user': {'read_only': True},
         }
 
 
@@ -21,12 +22,18 @@ class WebSinglePostSerializer(serializers.ModelSerializer):
     class Meta:
         model = WebSinglePostModel
         fields = '__all__'
+        extra_kwargs = {
+            'user': {'read_only': True},
+        }
 
 
 class TelegramBotSerializer(serializers.ModelSerializer):
     class Meta:
         model = TelegramModel
         fields = '__all__'
+        extra_kwargs = {
+            'user': {'read_only': True},
+        }
 
 
 class TelegramSendPostSerializer(serializers.ModelSerializer):

@@ -6,6 +6,9 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProfileModel
         fields = '__all__'
+        extra_kwargs = {
+            'user': {'read_only': True},
+        }
 
 
 class PostMediaSerializer(serializers.ModelSerializer):
@@ -21,6 +24,9 @@ class ActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActionModel
         fields = "__all__"
+        extra_kwargs = {
+            'user': {'read_only': True},
+        }
 
     def get_bot_info(self, obj):
         return ProfileSerializer(obj.bot).data
@@ -40,6 +46,9 @@ class CampaignSerializer(serializers.ModelSerializer):
     class Meta:
         model = CampaignSocialMediaModel
         fields = "__all__"
+        extra_kwargs = {
+            'user': {'read_only': True},
+        }
 
     def get_posts_objects(self, obj):
         return PostCampaignSerializer(obj.posts_objects.all(), many=True).data
