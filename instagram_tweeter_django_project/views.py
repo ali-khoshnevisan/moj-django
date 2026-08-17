@@ -79,20 +79,34 @@ class TaskUpdateManager(APIView):
         task_id = valid_data['task_id']
         worker_type = valid_data['worker_type']
         status = valid_data['status']
-        print('like action status:', status)
         result = valid_data['result']
-        print('like action result:', result)
         model = self.model_determiner(worker_type)
         if not model:
             return Response({"message": "This worker type is not allowed"}, status=400)
         obj = self.find_obj(model, task_id)
         if not obj:
             return Response({"message": "This task id is not found"})
+
+        if status == settings.DISABLE_PROFILE_STATUS and not isinstance(
+            obj, ActionModel
+        ):
+            return Response(
+                {"message": "disable_profile is not applicable to this worker type"},
+                status=400,
+            )
+
         method = self.find_method(worker_type)
         if not method:
             return Response({"message": "This worker type is not allowed"}, status=400)
         method(obj, status, result)
         return Response({"message": "ok"})
+
+    def disable_profile(self, profile):
+        if not profile:
+            return
+        ProfileModel.objects.filter(pk=profile.pk).update(
+            status=settings.PROFILE_NOT_LOGIN_STATUS,
+        )
 
     def model_determiner(self, worker):
         return self.model_determiner_dict.get(worker)
@@ -276,7 +290,12 @@ class TaskUpdateManager(APIView):
 
     def profile_response(self, profile, status, result):
         if isinstance(profile, ProfileModel):
-            if status == settings.FAILED_CORE_TASK_STATUS:
+            if status == settings.PROFILE_NOT_LOGIN_STATUS:
+                profile.status = settings.PROFILE_NOT_LOGIN_STATUS
+                profile.task_id = None
+                profile.last_update = timezone.now()
+                profile.save()
+            elif status == settings.FAILED_CORE_TASK_STATUS:
                 profile.task_id = None
                 profile.last_update = timezone.now()
                 profile.save()
@@ -301,6 +320,13 @@ class TaskUpdateManager(APIView):
             profile.save()
 
     def action_response(self, task, status, result):
+        if status == settings.DISABLE_PROFILE_STATUS:
+            self.disable_profile(task.bot)
+            task.status = 'failed'
+            task.task_id = None
+            task.save()
+            return
+
         task.status = status
         task.task_id = None
         task.save()
@@ -356,7 +382,7 @@ class DashboardSummaryView(APIView):
     def _account_overview(user):
         return {
             "email": getattr(user, "email", None),
-            "full_name": getattr(user, "name", None),
+            "full_name": user.get_full_name() if hasattr(user, "get_full_name") else None,
             "date_joined": getattr(user, "date_joined", None),
             "is_active": getattr(user, "is_active", True),
         }
