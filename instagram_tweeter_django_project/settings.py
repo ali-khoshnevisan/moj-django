@@ -178,6 +178,12 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+PROXY_HOST = "proxy.ghostvps.com"
+PROXY_PASSWORD = "92964b4ea532a8e1"
+PROFILE_LOCK_DIR = "/var/www/firefox_profiles/.locks"
+INSTAGRAM_SESSION_REFRESH_INTERVAL = timedelta(hours=3)
+INSTAGRAM_SESSION_REFRESH_BATCH = 10
+
 TELEGRAM_CRAWLER_UPDATE_TIME = timedelta(hours=1)
 WEB_CRAWLER_UPDATE_TIME = timedelta(hours=12)
 SOCIAL_MEDIA_PROFILE_CRAWLER_UPDATE_TIME = timedelta(hours=1)
@@ -203,6 +209,13 @@ CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Tehran'
+
+CELERY_BEAT_SCHEDULE = {
+    "refresh-instagram-sessions": {
+        "task": "social_media.refresh_instagram_sessions",
+        "schedule": timedelta(hours=1),
+    },
+}
 
 # settings.py
 

@@ -45,6 +45,8 @@ class ProfileModel(models.Model):
     profile_image = models.URLField(blank=True, null=True)
     image = models.FileField(blank=True, null=True, upload_to=upload_to_profile)
     last_update = models.DateTimeField(auto_now_add=True)
+    session_updated_at = models.DateTimeField(blank=True, null=True)
+    session_refresh_error = models.CharField(max_length=500, blank=True, null=True)
     max_actions_per_hour = models.JSONField(blank=True, null=True)
     task_id = models.UUIDField(blank=True, null=True)
     proxy = models.JSONField(blank=True, null=True)
