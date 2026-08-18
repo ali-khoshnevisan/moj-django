@@ -27,7 +27,7 @@ class StandardResultsSetPagination(PageNumberPagination):
 class ProfileFilter(django_filters.FilterSet):
     class Meta:
         model = ProfileModel
-        fields = ["social_media"]
+        fields = ["social_media", "status"]
 
 
 class ProfileViewSet(viewsets.ModelViewSet):
