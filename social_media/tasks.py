@@ -13,6 +13,7 @@ from celery import shared_task
 from django.db.models import Q
 from filelock import FileLock, Timeout
 from instagrapi import Client
+from instagrapi.exceptions import ChallengeRequired, LoginRequired, BadPassword
 from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger(__name__)
@@ -23,11 +24,13 @@ PAGE_TIMEOUT_MS = 60_000
 
 
 def _lock_path(profile_path):
+    # FileLock creates the lock FILE but not its parent DIRECTORY. Without
+    # this makedirs, a missing dir raises FileNotFoundError from acquire() —
+    # which is not a Timeout, so it escapes _refresh_one and kills the batch.
+    lock_dir = getattr(settings, "PROFILE_LOCK_DIR", "/tmp")
+    os.makedirs(lock_dir, exist_ok=True)
     name = os.path.basename(profile_path.rstrip("/").rstrip("\\"))
-    return os.path.join(
-        getattr(settings, "PROFILE_LOCK_DIR", "/tmp"),
-        f"ffprofile-{name}.lock",
-    )
+    return os.path.join(lock_dir, f"ffprofile-{name}.lock")
 
 
 def _extract_session_id(cookies):
@@ -37,9 +40,27 @@ def _extract_session_id(cookies):
     return None
 
 
-def _dump_instagrapi_session(session_id, proxy_username, port):
-    """Build an instagrapi session from a fresh sessionid, return JSON string."""
+def _dump_instagrapi_session(session_id, proxy_username, port, existing_settings=None):
+    """
+    Build an instagrapi session from a fresh sessionid, return JSON string.
+
+    `existing_settings` is the profile's CURRENT firefox_json_path content.
+    Reusing it is essential, not an optimisation: a bare Client() invents new
+    device UUIDs, device_settings and user_agent on every call, so each
+    refresh would look to Instagram like the account moved to a brand-new
+    phone — which is exactly what triggers ChallengeRequired. set_settings()
+    restores the stored device identity so the account stays consistent.
+    """
     cl = Client()
+
+    if existing_settings:
+        try:
+            cl.set_settings(json.loads(existing_settings))
+        except Exception as e:  # noqa: BLE001
+            # Corrupt/empty stored settings shouldn't block the refresh, but
+            # it does mean a new device identity — worth knowing about.
+            logger.warning("could not reuse stored settings (new device id will be generated): %s", e)
+
     proxy_url = (
         f"{proxy_username}:{settings.PROXY_PASSWORD}"
         f"@{settings.PROXY_HOST}:{port}"
@@ -58,6 +79,14 @@ def _dump_instagrapi_session(session_id, proxy_username, port):
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+def _mark_not_login(profile, msg):
+    ProfileModel.objects.filter(pk=profile.pk).update(
+        status="profile-is-not-login",
+        session_refresh_error=msg,
+    )
+    return False, msg
 
 
 def _refresh_one(profile):
@@ -121,12 +150,26 @@ def _refresh_one(profile):
                 browser.close()
 
         if not session_id:
-            # Cookies are gone/expired — this one genuinely needs a human to
-            # log in again through the edit browser. Flag it so the dashboard
-            # and the user can see it.
-            return False, "no sessionid cookie — manual re-login required"
+            return _mark_not_login(
+                profile, "no sessionid cookie — manual re-login required"
+            )
 
-        session_json = _dump_instagrapi_session(session_id, proxy_username, port)
+        try:
+            session_json = _dump_instagrapi_session(
+                session_id, proxy_username, port,
+                existing_settings=profile.firefox_json_path,
+            )
+        except ChallengeRequired:
+            return _mark_not_login(
+                profile,
+                "manual re-login required: Instagram challenge/checkpoint on this account",
+            )
+        except (LoginRequired, BadPassword):
+            return _mark_not_login(
+                profile,
+                "manual re-login required: credentials/session rejected",
+            )
+
         if not session_json:
             return False, "instagrapi produced an empty session"
 
@@ -161,6 +204,7 @@ def refresh_instagram_sessions():
     due = (
         ProfileModel.objects
         .filter(social_media="instagram")
+        .filter(status="added")
         .exclude(firefox_profile_path__isnull=True)
         .exclude(firefox_profile_path="")
         # stale = never refreshed, or last refresh older than the cutoff
@@ -190,10 +234,21 @@ def refresh_instagram_sessions():
 
 @shared_task(name="social_media.refresh_single_instagram_session")
 def refresh_single_instagram_session(profile_id):
+    """
+    Manual/on-demand refresh for one profile — handy to wire to a
+    'Refresh session' button in the panel without waiting for the next beat.
+    """
     try:
-        profile = ProfileModel.objects.get(pk=profile_id, social_media="instagram")
+        profile = ProfileModel.objects.get(
+            pk=profile_id, social_media="instagram", status="added"
+        )
     except ProfileModel.DoesNotExist:
-        return {"ok": False, "msg": "profile not found"}
+        return {
+            "ok": False,
+            "msg": "profile not found, or its status is not 'added' "
+                   "(a profile flagged profile-is-not-login must be logged "
+                   "in again through the edit browser first)",
+        }
 
     ok, msg = _refresh_one(profile)
     if not ok:
