@@ -215,7 +215,8 @@ CELERY_TIMEZONE = 'Asia/Tehran'
 CELERY_BEAT_SCHEDULE = {
     "refresh-instagram-sessions": {
         "task": "social_media.refresh_instagram_sessions",
-        "schedule": timedelta(hours=1),
+        "schedule": timedelta(minutes=2),
+        # "schedule": timedelta(hours=1),
     },
 }
 
