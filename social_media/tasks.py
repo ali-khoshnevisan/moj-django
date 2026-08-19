@@ -445,7 +445,7 @@ def create_actions():
                 if action == "like":
                     try:
                         ActionModel.objects.create(
-                            user=bot.campaign.user,
+                            user=post.campaign.user,
                             social_media=post.campaign.social_media,
                             url=comment_url,
                             bot=bot,
@@ -457,7 +457,7 @@ def create_actions():
                 elif action == "follow":
                     try:
                         ActionModel.objects.create(
-                            user=bot.campaign.user,
+                            user=post.campaign.user,
                             social_media=post.campaign.social_media,
                             url=user_url,
                             bot=bot,
@@ -494,7 +494,7 @@ def create_actions():
                             ai_type="chatgpt",
                             request=prompt,
                             comment_details={
-                                "user": bot.campaign.user,
+                                "user": post.campaign.user,
                                 "social_media": post.campaign.social_media,
                                 "url": comment_url,
                                 "bot": bot.id,
@@ -516,7 +516,7 @@ def create_actions():
                                 ai_type="chatgpt",
                                 request=prompt,
                                 comment_details={
-                                    "user": bot.campaign.user,
+                                    "user": post.campaign.user,
                                     "social_media": post.campaign.social_media,
                                     "url": comment_url,
                                     "bot": bot.id,
