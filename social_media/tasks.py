@@ -309,6 +309,11 @@ def profile_process():
 
     print("FINISH PROFILE SOCIAL MEDIA TASKS MANAGER")
 
+def update_bot_next_eligible(profile):
+    pause_minutes = random.randint(profile.pause_time, profile.pause_time + 5)
+    ProfileModel.objects.filter(pk=profile.pk).update(
+        next_eligible_at=timezone.now() + timedelta(minutes=pause_minutes),
+    )
 
 def action_process():
     print("START ACTION SOCIAL MEDIA TASKS MANAGER")
@@ -317,6 +322,9 @@ def action_process():
         try:
             if task.send_date > timezone.now():
                 print(f"now is {timezone.now()}message will sent after {task.send_date}")
+                continue
+
+            if task.bot.next_eligible_at > timezone.now():
                 continue
 
             medias = []
@@ -341,6 +349,7 @@ def action_process():
             task_id = response['task_id']
             task.task_id = task_id
             task.status = 'pending'
+            update_bot_next_eligible(task.bot)
             task.save()
 
         except Exception as e:

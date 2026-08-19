@@ -45,6 +45,8 @@ class ProfileModel(models.Model):
     profile_image = models.URLField(blank=True, null=True)
     image = models.FileField(blank=True, null=True, upload_to=upload_to_profile)
     last_update = models.DateTimeField(auto_now_add=True)
+    next_eligible_at = models.DateTimeField(default=timezone.now)
+    pause_time = models.IntegerField(default=4)
     session_updated_at = models.DateTimeField(blank=True, null=True)
     session_refresh_error = models.CharField(max_length=500, blank=True, null=True)
     max_actions_per_hour = models.JSONField(blank=True, null=True)
@@ -118,6 +120,11 @@ class ActionModel(models.Model):
             raise ValidationError({
                 'action': f"{self.action} is not allowed for {self.social_media}"
             })
+
+        # bot.max_actions_per_hour is nullable — without this guard, any
+        # bot that never had it configured crashes every single save() here.
+        if not self.bot.max_actions_per_hour:
+            return
 
         limit = self.bot.max_actions_per_hour.get(self.action)
         if not limit:
