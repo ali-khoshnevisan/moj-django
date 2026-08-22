@@ -89,7 +89,7 @@ class PostModel(models.Model):
         ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
-        if self.account.ai_prompt:
+        if self.account.ai_prompt and not self.ai_response:
             self.ai_response = "Processing for generating Ai response, please wait..."
         super().save(*args, **kwargs)
 

@@ -55,6 +55,6 @@ class AIModel(models.Model):
             return
 
 
-        post = PostModel.objects.get(pk=self.post_details.get("post_pk"))
-        post.ai_response = self.response
-        post.save()
+        PostModel.objects.filter(pk=self.post_details.get("post_pk")).update(
+            ai_response=self.response,
+        )
