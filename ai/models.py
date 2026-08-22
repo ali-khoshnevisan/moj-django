@@ -47,11 +47,13 @@ class AIModel(models.Model):
         )
 
     def post_answer(self):
+        print('post answer', self.response)
         if not (self.post_details and self.response):
             print("creating post answer failed")
             print("post details:", self.post_details)
             print("response:", self.response)
             return
+
 
         post = PostModel.objects.get(pk=self.post_details.get("post_pk"))
         post.ai_response = self.response

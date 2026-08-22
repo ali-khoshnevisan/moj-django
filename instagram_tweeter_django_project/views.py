@@ -70,13 +70,11 @@ class TaskUpdateManager(APIView):
     }
 
     def post(self, request):
-        print('request.data', request.data)
         res_data = self.serializer_class(data=request.data)
         if not res_data.is_valid():
             print("not valid")
             return Response(res_data.errors, status=400)
         valid_data = res_data.validated_data
-        print('valid:', valid_data)
 
         task_id = valid_data['task_id']
         worker_type = valid_data['worker_type']
@@ -189,8 +187,6 @@ class TaskUpdateManager(APIView):
                 return self.post_campaign_response
 
     def ai_response(self, task, status, result):
-        print('ai status:', status)
-        print('ai result:', result)
 
         try:
             if status == settings.FAILED_CORE_TASK_STATUS:
