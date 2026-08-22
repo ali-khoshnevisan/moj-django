@@ -220,6 +220,7 @@ def get_last_posts(channel):
 
 @shared_task
 def telegram_worker_task(account_id, url):
+    print('starting telegram worker')
     try:
         extracted_posts = get_last_posts(url)
 
