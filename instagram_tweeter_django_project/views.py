@@ -75,6 +75,7 @@ class TaskUpdateManager(APIView):
             print("not valid")
             return Response(res_data.errors, status=400)
         valid_data = res_data.validated_data
+        print('valid:', valid_data)
 
         task_id = valid_data['task_id']
         worker_type = valid_data['worker_type']
