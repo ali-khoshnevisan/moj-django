@@ -70,6 +70,7 @@ class TaskUpdateManager(APIView):
     }
 
     def post(self, request):
+        print('request.data', request.data)
         res_data = self.serializer_class(data=request.data)
         if not res_data.is_valid():
             print("not valid")
