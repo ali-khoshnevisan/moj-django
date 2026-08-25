@@ -310,9 +310,9 @@ def profile_process():
     print("FINISH PROFILE SOCIAL MEDIA TASKS MANAGER")
 
 def update_bot_next_eligible(profile):
-    pause_minutes = random.randint(profile.pause_time, profile.pause_time + 5)
+    pause_minutes = random.randint(1, 59)
     ProfileModel.objects.filter(pk=profile.pk).update(
-        next_eligible_at=timezone.now() + timedelta(hours=pause_minutes),
+        next_eligible_at=timezone.now() + timedelta(hours=profile.pause_time, minutes=pause_minutes),
     )
 
 def action_process():
