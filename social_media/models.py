@@ -129,19 +129,19 @@ class ActionModel(models.Model):
         limit = self.bot.max_actions_per_hour.get(self.action)
         if not limit:
             return
-        interval = timedelta(hours=1) / limit
+        interval = timedelta(days=1) / limit
 
         qs = self.__class__.objects.filter(
             bot=self.bot,
             action=self.action,
-            send_date__gte=timezone.now() - timedelta(hours=1)
+            send_date__gte=timezone.now() - timedelta(days=1)
         ).order_by('-send_date')
 
         if qs.count() < limit:
             return
 
         last_action = qs[limit - 1]
-        next_allowed_time = last_action.send_date + timedelta(hours=1)
+        next_allowed_time = last_action.send_date + timedelta(days=1)
 
         if self.send_date < next_allowed_time:
             self.send_date = next_allowed_time
