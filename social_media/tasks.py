@@ -320,12 +320,21 @@ def action_process():
     requested_tasks = ActionModel.objects.filter(status='requested', working=True)
     for task in requested_tasks:
         try:
+            if task.bot.status == "profile-is-not-login":
+                continue
+
             if task.send_date > timezone.now():
                 print(f"now is {timezone.now()}message will sent after {task.send_date}")
                 continue
 
             if task.bot.next_eligible_at > timezone.now():
                 continue
+
+            print(
+                f"[action_process] DISPATCHING task {task.pk}: "
+                f"send_date={task.send_date} next_eligible_at={task.bot.next_eligible_at} "
+                f"now={timezone.now()}"
+            )
 
             medias = []
             for media in task.medias.all():
@@ -353,7 +362,7 @@ def action_process():
             task.save()
 
         except Exception as e:
-            print(e)
+            print(f"[action_process] ERROR on task {task.pk}: {e}")
 
     print("FINISH ACTION SOCIAL MEDIA TASKS MANAGER")
 
