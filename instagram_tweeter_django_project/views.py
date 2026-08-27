@@ -319,7 +319,7 @@ class TaskUpdateManager(APIView):
             if status == settings.PROFILE_NOT_LOGIN_STATUS:
                 profile.bots.first().status = settings.PROFILE_NOT_LOGIN_STATUS
                 profile.status = 'failed'
-                profile.task_ids = list
+                profile.task_ids = []
                 profile.save()
             else:
                 profile.posts = list(set(result["last_12_posts"] + profile.posts))
