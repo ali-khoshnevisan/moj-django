@@ -290,7 +290,6 @@ class TaskUpdateManager(APIView):
 
     def profile_response(self, profile, status, result):
         if isinstance(profile, ProfileModel):
-            print('status', status)
             if status == settings.PROFILE_NOT_LOGIN_STATUS:
                 profile.status = settings.PROFILE_NOT_LOGIN_STATUS
                 profile.task_id = None
@@ -317,6 +316,7 @@ class TaskUpdateManager(APIView):
                     save=True
                 )
         elif isinstance(profile, CampaignSocialMediaModel):
+            print('status', status)
             profile.posts = list(set(result["last_12_posts"] + profile.posts))
             profile.save()
 
