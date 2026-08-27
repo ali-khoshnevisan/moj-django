@@ -457,6 +457,7 @@ def create_actions():
                             user=post.campaign.user,
                             social_media=post.campaign.social_media,
                             url=comment_url,
+                            target_account_url=user_url,
                             bot=bot,
                             action=action,
                             campaign=post.campaign
@@ -469,6 +470,7 @@ def create_actions():
                             user=post.campaign.user,
                             social_media=post.campaign.social_media,
                             url=user_url,
+                            target_account_url=user_url,
                             bot=bot,
                             action=action,
                             campaign=post.campaign
@@ -506,6 +508,7 @@ def create_actions():
                                 "user": post.campaign.user,
                                 "social_media": post.campaign.social_media,
                                 "url": comment_url,
+                                "target_account_url": user_url,
                                 "bot": bot.id,
                                 "action": action,
                                 "campaign": post.campaign.id
@@ -528,6 +531,7 @@ def create_actions():
                                     "user": post.campaign.user,
                                     "social_media": post.campaign.social_media,
                                     "url": comment_url,
+                                    "target_account_url": user_url,
                                     "bot": bot.id,
                                     "action": action,
                                     "campaign": post.campaign.id

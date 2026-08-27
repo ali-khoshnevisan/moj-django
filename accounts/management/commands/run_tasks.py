@@ -19,4 +19,4 @@ class Command(BaseCommand):
                 except Exception as e:
                     print(e)
 
-            time.sleep(5)
+            time.sleep(10)

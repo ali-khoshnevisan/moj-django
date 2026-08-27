@@ -99,6 +99,7 @@ class ActionModel(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_actions')
     social_media = models.CharField(max_length=10, choices=social_media_choices)
     url = models.URLField(blank=True, null=True)
+    target_account_url = models.CharField(max_length=100, blank=True, null=True)
     last_update = models.DateTimeField(auto_now=True)
     action = models.CharField(max_length=20)
     status = models.CharField(max_length=10, default="requested", choices=action_status_choices)
@@ -113,6 +114,12 @@ class ActionModel(models.Model):
 
     class Meta:
         ordering = ['-last_update']
+        constraints = [
+            models.UniqueConstraint(
+                fields=["target_account_url", "bot"],
+                name="unique_target_account_per_bot"
+            )
+        ]
 
     def clean(self):
         allowed_actions = action_choices.get(self.social_media, [])
