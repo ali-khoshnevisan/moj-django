@@ -13,7 +13,11 @@ from celery import shared_task
 from django.db.models import Q
 from filelock import FileLock, Timeout
 from instagrapi import Client
-from instagrapi.exceptions import ChallengeRequired, LoginRequired, BadPassword
+from instagrapi.exceptions import (
+    ChallengeRequired, LoginRequired, BadPassword,
+    FeedbackRequired, AccountSuspended, PleaseWaitFewMinutes,
+    ClientError,
+)
 from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger(__name__)
@@ -87,6 +91,142 @@ def _mark_not_login(profile, msg):
         session_refresh_error=msg,
     )
     return False, msg
+
+
+def _build_authenticated_client(profile):
+    if not profile.firefox_json_path:
+        return None, "no session stored for this profile — needs initial login"
+
+    try:
+        settings_dict = json.loads(profile.firefox_json_path)
+    except (json.JSONDecodeError, TypeError) as e:
+        return None, f"stored session is not valid JSON: {e}"
+
+    if not settings_dict:
+        return None, "stored session is empty"
+
+    proxy = profile.proxy or {}
+    proxy_username = proxy.get("username")
+    proxy_port = proxy.get("port")
+    if not proxy_username or not proxy_port:
+        return None, "profile has no proxy username/port"
+
+    cl = Client()
+    cl.set_settings(settings_dict)
+
+    proxy_url = (
+        f"{proxy_username}:{settings.PROXY_PASSWORD}"
+        f"@{settings.PROXY_HOST}:{proxy_port}"
+    )
+    cl.set_proxy(proxy_url)
+
+    if not cl.user_id:
+        return None, "stored session has no logged-in user — needs re-login"
+
+    return cl, None
+
+
+def _resolve_media_target(client, url):
+    """like/comment target: a POST url. media_pk_from_url already parses
+    the full URL itself, no manual extraction needed."""
+    return client.media_pk_from_url(url)
+
+
+def _resolve_user_target(client, url):
+    """follow/direct target: a PROFILE url. instagrapi's
+    user_id_from_username only strips '@'/whitespace, it does NOT parse a
+    full URL — so the username has to be pulled out of the path here."""
+    from urllib.parse import urlparse
+
+    path = urlparse(url).path.strip("/")
+    if not path:
+        raise ValueError(f"could not extract a username from url: {url!r}")
+
+    username = path.split("/")[0]
+    # Guards against a post URL (/p/<code>/) or other non-profile path
+    # accidentally reaching here and being read as a "username".
+    if username in ("p", "reel", "reels", "stories", "tv"):
+        raise ValueError(
+            f"url looks like a post/reel/story url, not a profile url: {url!r}"
+        )
+
+    return client.user_id_from_username(username)
+
+
+def perform_instagram_action(profile, action, url, text=None):
+    if action not in ("like", "comment", "follow", "direct"):
+        return "failed", f"action '{action}' is not supported by direct execution yet"
+
+    client, err = _build_authenticated_client(profile)
+    if client is None:
+        return "not_login", err
+
+    try:
+        if action == "like":
+            media_id = _resolve_media_target(client, url)
+            client.media_like(media_id)
+            return "success", f"liked media {media_id}"
+
+        elif action == "comment":
+            if not text:
+                return "failed", "comment action requires text"
+            media_id = _resolve_media_target(client, url)
+            client.media_comment(media_id, text)
+            return "success", f"commented on media {media_id}"
+
+        elif action == "follow":
+            user_id = _resolve_user_target(client, url)
+            client.user_follow(user_id)
+            return "success", f"followed user {user_id}"
+
+        elif action == "direct":
+            if not text:
+                return "failed", "direct action requires text"
+            user_id = _resolve_user_target(client, url)
+            client.direct_send(text, user_ids=[int(user_id)])
+            return "success", f"sent direct to user {user_id}"
+
+    except ValueError as e:
+        # our own target-resolution errors (bad/unparseable url)
+        return "failed", str(e)[:500]
+
+    except AccountSuspended as e:
+        # More severe than a normal challenge — the account itself is
+        # suspended, not just needing re-verification. Still routed to
+        # profile-is-not-login since that's the only "needs attention"
+        # status this model has, but the message makes the real cause clear.
+        return "not_login", f"account suspended: {e}"[:500]
+
+    except ChallengeRequired as e:
+        return "not_login", f"challenge/checkpoint required: {e}"[:500]
+
+    except (LoginRequired, BadPassword) as e:
+        return "not_login", f"session rejected: {e}"[:500]
+
+    except FeedbackRequired as e:
+        # THIS is Instagram's rate-limit/spam-block signal — distinct from
+        # a dead session. The account is still logged in; it's being
+        # throttled for acting too fast/too much. Worth its own message
+        # even though it maps to the same profile-is-not-login status,
+        # since "your credentials are fine, you were just too aggressive"
+        # is a very different thing to act on than "log back in".
+        return "not_login", f"rate-limited by Instagram (feedback_required): {e}"[:500]
+
+    except PleaseWaitFewMinutes as e:
+        # Transient throttle, not an auth problem — do NOT mark the
+        # profile not-login for this one, just fail this action so it can
+        # be retried on the normal schedule.
+        return "failed", f"instagram asked to wait a few minutes: {e}"[:500]
+
+    except ClientError as e:
+        # Catch-all for any other instagrapi/API-level failure we didn't
+        # anticipate above. Treated as a normal action failure, not an
+        # auth failure, since we don't actually know it's a login problem.
+        return "failed", f"instagrapi error: {e}"[:500]
+
+    except Exception as e:  # noqa: BLE001
+        logger.exception("unexpected error performing %s for profile %s", action, profile.pk)
+        return "failed", f"unexpected error: {e}"[:500]
 
 
 def _refresh_one(profile):
@@ -330,39 +470,54 @@ def action_process():
             if task.bot.next_eligible_at > timezone.now():
                 continue
 
-            print(
-                f"[action_process] DISPATCHING task {task.pk}: "
-                f"send_date={task.send_date} next_eligible_at={task.bot.next_eligible_at} "
-                f"now={timezone.now()}"
-            )
-
-            medias = []
-            for media in task.medias.all():
-                if media.media.url.startswith("http"):
-                    media_url = media.media.url
-                else:
-                    media_url = urljoin("http://46.225.112.201:6688", media.media.url)
-                medias.append((media_url, media.media_type))
-                print('post medias: ', medias)
-            response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
-                                     json={"worker_type": f"{task.social_media}-{task.action}",
-                                           "data": {"url": task.url,
-                                                    "text": task.text,
-                                                    "medias": medias,
-                                                    "username": task.bot.username,
-                                                    "proxy_host": task.bot.proxy['host'],
-                                                    "proxy_username": task.bot.proxy['username'],
-                                                    "proxy_pass": task.bot.proxy['password'],
-                                                    "proxy_port": task.bot.proxy['port'],
-                                                    "firefox_json_path": json.loads(task.bot.firefox_json_path)}}).json()
-            task_id = response['task_id']
-            task.task_id = task_id
             task.status = 'pending'
-            update_bot_next_eligible(task.bot)
-            task.save()
+            task.save(update_fields=["status"])
+
+            outcome, detail = perform_instagram_action(
+                profile=task.bot,
+                action=task.action,
+                url=task.url,
+                text=task.text,
+            )
+            print(f"[action_process] task {task.pk} outcome={outcome}: {detail}")
+
+            if outcome == "success":
+                task.status = 'success'
+                task.result = {"detail": detail}
+                task.task_id = None
+                task.save(update_fields=["status", "result", "task_id"])
+                update_bot_next_eligible(task.bot)
+
+            elif outcome == "not_login":
+                task.status = 'failed'
+                task.result = {"detail": detail}
+                task.task_id = None
+                task.save(update_fields=["status", "result", "task_id"])
+                ProfileModel.objects.filter(pk=task.bot_id).update(
+                    status="profile-is-not-login",
+                    session_refresh_error=detail,
+                )
+
+            else:  # "failed"
+                task.status = 'failed'
+                task.result = {"detail": detail}
+                task.task_id = None
+                task.save(update_fields=["status", "result", "task_id"])
 
         except Exception as e:
             print(f"[action_process] ERROR on task {task.pk}: {e}")
+            # Task was already flipped to 'pending' above before this
+            # exception — without this, it would be stuck at 'pending'
+            # forever with no completion status, the exact same silent-
+            # stuck-state bug fixed earlier in telegram_worker_task.
+            try:
+                ActionModel.objects.filter(pk=task.pk).update(
+                    status='failed',
+                    result={"detail": f"unhandled error: {e}"[:500]},
+                    task_id=None,
+                )
+            except Exception as inner_e:
+                print(f"[action_process] could not even record failure for task {task.pk}: {inner_e}")
 
     print("FINISH ACTION SOCIAL MEDIA TASKS MANAGER")
 
