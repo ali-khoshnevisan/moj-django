@@ -102,8 +102,26 @@ def _build_authenticated_client(profile):
     except (json.JSONDecodeError, TypeError) as e:
         return None, f"stored session is not valid JSON: {e}"
 
-    if not settings_dict:
-        return None, "stored session is empty"
+    if isinstance(settings_dict, str):
+        logger.warning(
+            "profile %s has double-encoded firefox_json_path — decoding again "
+            "and repairing the stored value",
+            profile.pk,
+        )
+        try:
+            settings_dict = json.loads(settings_dict)
+        except (json.JSONDecodeError, TypeError) as e:
+            return None, f"stored session is double-encoded AND the inner value is not valid JSON: {e}"
+
+        if isinstance(settings_dict, dict):
+            # Repair it now so this profile doesn't hit this path again on
+            # its next action.
+            ProfileModel.objects.filter(pk=profile.pk).update(
+                firefox_json_path=json.dumps(settings_dict)
+            )
+
+    if not settings_dict or not isinstance(settings_dict, dict):
+        return None, "stored session is empty or not a JSON object"
 
     proxy = profile.proxy or {}
     proxy_username = proxy.get("username")
@@ -189,6 +207,14 @@ def perform_instagram_action(profile, action, url, text=None):
     except ValueError as e:
         # our own target-resolution errors (bad/unparseable url)
         return "failed", str(e)[:500]
+
+    except TypeError as e:
+        raw_response = getattr(client, "last_json", "<no last_json available>")
+        logger.warning(
+            "malformed API response for %s on profile %s: %s | last_json=%r",
+            action, profile.pk, e, raw_response,
+        )
+        return "failed", f"malformed response from instagram/proxy: {str(raw_response)[:300]}"
 
     except AccountSuspended as e:
         # More severe than a normal challenge — the account itself is
