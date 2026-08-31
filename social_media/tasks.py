@@ -616,6 +616,7 @@ def create_actions():
     print("START CAMPAIGN CREATE ACTION SOCIAL MEDIA TASKS MANAGER")
     posts = PostCampaignModel.objects.filter(status="success", working=True)
     for post in posts:
+        print(post.campaign.bots.all())
         bots = post.campaign.bots.all()
         actions = list(post.campaign.actions)
 
