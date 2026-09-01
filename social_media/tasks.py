@@ -144,10 +144,37 @@ def _build_authenticated_client(profile):
     return cl, None
 
 
+def _normalize_post_url(url):
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    parts = [p for p in parsed.path.split("/") if p]
+
+    for prefix in ("p", "reel", "tv"):
+        if prefix in parts:
+            idx = parts.index(prefix)
+            if idx + 1 < len(parts):
+                shortcode = parts[idx + 1]
+                return f"{parsed.scheme}://{parsed.netloc}/{prefix}/{shortcode}/"
+
+    return url
+
+
+def _extract_comment_id(url):
+    from urllib.parse import urlparse
+
+    parts = [p for p in urlparse(url).path.split("/") if p]
+    if "c" in parts:
+        idx = parts.index("c")
+        if idx + 1 < len(parts) and parts[idx + 1].isdigit():
+            return parts[idx + 1]
+    return None
+
+
 def _resolve_media_target(client, url):
-    """like/comment target: a POST url. media_pk_from_url already parses
-    the full URL itself, no manual extraction needed."""
-    return client.media_pk_from_url(url)
+    """like/comment target: a POST url. Normalized first (see
+    _normalize_post_url) in case it's actually a comment permalink."""
+    return client.media_pk_from_url(_normalize_post_url(url))
 
 
 def _resolve_user_target(client, url):
@@ -181,6 +208,10 @@ def perform_instagram_action(profile, action, url, text=None):
 
     try:
         if action == "like":
+            comment_id = _extract_comment_id(url)
+            if comment_id:
+                client.comment_like(comment_id)
+                return "success", f"liked comment {comment_id}"
             media_id = _resolve_media_target(client, url)
             client.media_like(media_id)
             return "success", f"liked media {media_id}"
@@ -188,7 +219,14 @@ def perform_instagram_action(profile, action, url, text=None):
         elif action == "comment":
             if not text:
                 return "failed", "comment action requires text"
+
+            reply_to = _extract_comment_id(url)
             media_id = _resolve_media_target(client, url)
+
+            if reply_to:
+                client.media_comment(media_id, text, replied_to_comment_id=reply_to)
+                return "success", f"replied to comment {reply_to} on media {media_id}"
+
             client.media_comment(media_id, text)
             return "success", f"commented on media {media_id}"
 
@@ -616,7 +654,6 @@ def create_actions():
     print("START CAMPAIGN CREATE ACTION SOCIAL MEDIA TASKS MANAGER")
     posts = PostCampaignModel.objects.filter(status="success", working=True)
     for post in posts:
-        print('post bots', post.campaign)
         bots = post.campaign.bots.all()
         actions = list(post.campaign.actions)
 
