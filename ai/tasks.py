@@ -8,7 +8,6 @@ def ai_process():
     print("START AI TASKS MANAGER")
     requested_tasks = AIModel.objects.filter(status='requested')
     for task in requested_tasks:
-        print('ai task', task.request)
         queue = task.ai_type
         if not task.comment_details and not task.post_details:
             queue = queue + "-fast"

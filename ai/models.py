@@ -37,7 +37,7 @@ class AIModel(models.Model):
             return
 
         ActionModel.objects.create(
-            user=self.comment_details.get("user"),
+            user_id=self.comment_details.get("user"),
             text=self.response,
             url=self.comment_details.get("url"),
             target_account_url=self.comment_details.get("target_account_url"),
