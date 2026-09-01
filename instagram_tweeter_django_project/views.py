@@ -187,7 +187,7 @@ class TaskUpdateManager(APIView):
                 return self.post_campaign_response
 
     def ai_response(self, task, status, result):
-
+        print('ai status', status)
         try:
             if status == settings.FAILED_CORE_TASK_STATUS:
                 if task.failed_count < 3:
@@ -322,7 +322,6 @@ class TaskUpdateManager(APIView):
                 profile.task_ids = []
                 profile.save()
             else:
-                print('result', result)
                 profile.posts = list(set(result["last_12_posts"] + profile.posts))
                 profile.save()
 

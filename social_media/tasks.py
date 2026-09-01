@@ -668,7 +668,8 @@ def create_actions():
             user_url = comment.get('user_url', '')
             comment_url = comment.get('link', '')
             comment_text = comment.get('text', '')
-            action = random.choice(actions)
+            # action = random.choice(actions)
+            action = "comment"
             for bot in bots:
                 if action == "like":
                     try:
