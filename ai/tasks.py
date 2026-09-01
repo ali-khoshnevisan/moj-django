@@ -8,6 +8,7 @@ def ai_process():
     print("START AI TASKS MANAGER")
     requested_tasks = AIModel.objects.filter(status='requested')
     for task in requested_tasks:
+        print('ai task', task.request)
         queue = task.ai_type
         if not task.comment_details and not task.post_details:
             queue = queue + "-fast"
@@ -15,7 +16,6 @@ def ai_process():
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                      json={"worker_type": queue,
                                            "data": {"text": task.request}}).json()
-            print('ai request', response)
             task_id = response['task_id']
             task.task_id = task_id
             task.status = 'pending'
