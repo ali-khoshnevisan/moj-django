@@ -668,8 +668,7 @@ def create_actions():
             user_url = comment.get('user_url', '')
             comment_url = comment.get('link', '')
             comment_text = comment.get('text', '')
-            # action = random.choice(actions)
-            action = "comment"
+            action = random.choice(actions)
             for bot in bots:
                 if action == "like":
                     try:
@@ -725,7 +724,7 @@ def create_actions():
                             ai_type="chatgpt",
                             request=prompt,
                             comment_details={
-                                "user": post.campaign.user,
+                                "user": post.campaign.user_id,
                                 "social_media": post.campaign.social_media,
                                 "url": comment_url,
                                 "target_account_url": user_url,
@@ -748,7 +747,7 @@ def create_actions():
                                 ai_type="chatgpt",
                                 request=prompt,
                                 comment_details={
-                                    "user": post.campaign.user,
+                                    "user": post.campaign.user_id,
                                     "social_media": post.campaign.social_media,
                                     "url": comment_url,
                                     "target_account_url": user_url,
