@@ -29,7 +29,7 @@ class AIViewSet(viewsets.ModelViewSet):
             response = requests.post(
                 settings.CREATE_TASK_CORE_SERVICE_URL,
                 json={
-                    "worker_type": queue,
+                    "worker_type": 'chatgpt',
                     "data": {"text": task.request}
                 },
                 timeout=10
