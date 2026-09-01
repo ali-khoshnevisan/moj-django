@@ -187,7 +187,6 @@ class TaskUpdateManager(APIView):
                 return self.post_campaign_response
 
     def ai_response(self, task, status, result):
-        print('ai status', status)
         try:
             if status == settings.FAILED_CORE_TASK_STATUS:
                 if task.failed_count < 3:
