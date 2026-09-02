@@ -534,6 +534,33 @@ def action_process():
             if task.bot.next_eligible_at > timezone.now():
                 continue
 
+            if task.action == "post":
+                medias = []
+                for media in task.medias.all():
+                    if media.media.url.startswith("http"):
+                        media_url = media.media.url
+                    else:
+                        media_url = urljoin("http://46.225.112.201:6688", media.media.url)
+                    medias.append((media_url, media.media_type))
+                    print('post medias: ', medias)
+                response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
+                                         json={"worker_type": f"{task.social_media}-{task.action}",
+                                               "data": {"text": task.text,
+                                                        "medias": medias,
+                                                        "username": task.bot.username,
+                                                        "proxy_host": task.bot.proxy['host'],
+                                                        "proxy_username": task.bot.proxy['username'],
+                                                        "proxy_pass": task.bot.proxy['password'],
+                                                        "proxy_port": task.bot.proxy['port'],
+                                                        "firefox_json_path": json.loads(
+                                                            task.bot.firefox_json_path)}}).json()
+                task_id = response['task_id']
+                task.task_id = task_id
+                task.status = 'pending'
+                update_bot_next_eligible(task.bot)
+                task.save()
+                continue
+
             task.status = 'pending'
             task.save(update_fields=["status"])
 
