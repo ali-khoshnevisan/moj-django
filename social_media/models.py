@@ -35,7 +35,7 @@ class ProfileModel(models.Model):
     social_media = models.CharField(max_length=10, choices=social_media_choices)
     firefox_profile_path = models.CharField(max_length=1000, unique=True, blank=True, null=True)
     firefox_json_path = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=100, default='requested', choices=profile_status_choices)
+    status = models.CharField(max_length=100, default='added', choices=profile_status_choices)
     username = models.CharField(max_length=40, blank=True, null=True)
     url = models.URLField()
     followers = models.CharField(max_length=20, blank=True, null=True)
