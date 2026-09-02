@@ -12,4 +12,5 @@ router.register(r'campaign', views.CampaignViewSet, basename='campaign')
 urlpatterns = [
     path('', include(router.urls), name='router'),
     path('post/', views.PostSocialMediaView.as_view(), name="post_action"),
+    path('instagram-login/', views.InstagramLoginView.as_view(), name="instagram_login"),
 ]

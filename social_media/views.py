@@ -1,9 +1,9 @@
 import csv
+import json
 import random
 import os
 import zipfile
 from rest_framework import status
-import requests
 from django.db.models import Max
 from django.conf import settings
 from rest_framework import viewsets
@@ -14,6 +14,12 @@ from rest_framework.response import Response
 import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import PermissionDenied
+from instagrapi import Client
+from instagrapi.exceptions import (
+    TwoFactorRequired, BadCredentials, ChallengeRequired, LoginRequired,
+    BadPassword, FeedbackRequired, AccountSuspended, PleaseWaitFewMinutes,
+    ClientError,
+)
 from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostMediaModel
 from .serializers import ProfileSerializer, ActionSerializer, CampaignSerializer
 from accounts.permissions import IsActiveUser
@@ -46,9 +52,6 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="max_id")
     def max_id(self, request):
-        # NOTE: kept global (not filtered by user) since this just hands out
-        # the next free primary key for naming firefox profile folders on
-        # disk, a machine-wide resource, not per-user data.
         max_id = ProfileModel.objects.aggregate(Max('id'))['id__max']
         if not max_id:
             max_id = 0
@@ -57,8 +60,6 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="allocate-port")
     def allocate_port(self, request):
-        # NOTE: also kept global — ports are a shared machine resource across
-        # all profiles, not something scoped to one user.
         MIN_PORT = 10000
         MAX_PORT = 30000
 
@@ -176,7 +177,6 @@ class ActionViewSet(viewsets.ModelViewSet):
         data = request.data
         bots = data.get('bot')
 
-        # بررسی می‌کنیم که آیا فیلد bot به صورت لیست (آرایه) از فرانت ارسال شده است یا خیر
         if isinstance(bots, list):
             if not bots:
                 return Response(
@@ -278,3 +278,141 @@ class PostSocialMediaView(APIView):
         serializer = ActionSerializer(action)
 
         return Response(serializer.data, status=201)
+
+
+PROXY_HOST = "proxy.ghostvps.com"
+PROXY_PASSWORD = "92964b4ea532a8e1"
+PROXY_USERNAME_PREFIX = "b8f3fab422699782c1f0"
+LOGIN_MIN_PORT = 10000
+LOGIN_MAX_PORT = 30000
+
+
+def _allocate_login_port():
+    last_profile = ProfileModel.objects.exclude(proxy__isnull=True).order_by('-id').first()
+
+    last_port = LOGIN_MIN_PORT - 1
+    if last_profile and isinstance(last_profile.proxy, dict) and 'port' in last_profile.proxy:
+        try:
+            last_port = int(last_profile.proxy['port'])
+        except ValueError:
+            pass
+
+    next_port = last_port + 1
+    if next_port > LOGIN_MAX_PORT:
+        next_port = LOGIN_MIN_PORT
+
+    return next_port
+
+
+class InstagramLoginView(APIView):
+    permission_classes = [IsActiveUser]
+
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        totp_seed = request.data.get("totp")
+        country = request.data.get("country")
+
+        if not username or not password:
+            return Response({"error": "username and password are required"}, status=400)
+        if not country:
+            return Response({"error": "country is required"}, status=400)
+
+        port = _allocate_login_port()
+        proxy_dsn = (
+            f"{PROXY_USERNAME_PREFIX}__cr.{country};sessttl.120:"
+            f"{PROXY_PASSWORD}@{PROXY_HOST}:{port}"
+        )
+
+        cl = Client()
+        cl.set_proxy(proxy_dsn)
+
+        verification_code = ""
+        if totp_seed:
+            try:
+                verification_code = Client.totp_generate_code(totp_seed)
+            except Exception as e:  # noqa: BLE001
+                return Response({
+                    "error": "could not generate a verification code from the provided totp seed",
+                    "detail": str(e)[:500],
+                }, status=400)
+
+        try:
+            cl.login(username, password, verification_code=verification_code)
+
+        except TwoFactorRequired as e:
+            return Response({
+                "error": "two_factor_required",
+                "message": "This account requires a 2FA code. Provide 'totp' (the TOTP seed).",
+                "detail": str(e)[:500],
+            }, status=401)
+
+        except BadPassword as e:
+            return Response({
+                "error": "bad_password",
+                "message": "Instagram rejected the password.",
+                "detail": str(e)[:500],
+            }, status=401)
+
+        except BadCredentials as e:
+            return Response({
+                "error": "bad_credentials",
+                "message": "Username or password is invalid or missing.",
+                "detail": str(e)[:500],
+            }, status=401)
+
+        except ChallengeRequired as e:
+            return Response({
+                "error": "challenge_required",
+                "message": "Instagram requires manual verification (checkpoint) for this account.",
+                "detail": str(e)[:500],
+            }, status=401)
+
+        except AccountSuspended as e:
+            return Response({
+                "error": "account_suspended",
+                "message": "This Instagram account is suspended.",
+                "detail": str(e)[:500],
+            }, status=403)
+
+        except FeedbackRequired as e:
+            return Response({
+                "error": "feedback_required",
+                "message": "Instagram is rate-limiting/throttling this account or IP.",
+                "detail": str(e)[:500],
+            }, status=429)
+
+        except PleaseWaitFewMinutes as e:
+            return Response({
+                "error": "please_wait",
+                "message": "Instagram asked to wait a few minutes before retrying.",
+                "detail": str(e)[:500],
+            }, status=429)
+
+        except LoginRequired as e:
+            return Response({
+                "error": "login_required",
+                "message": "Instagram rejected the session unexpectedly.",
+                "detail": str(e)[:500],
+            }, status=401)
+
+        except ClientError as e:
+            return Response({
+                "error": "instagrapi_error",
+                "message": "An unexpected Instagram API error occurred.",
+                "detail": str(e)[:500],
+            }, status=502)
+
+        except Exception as e:  # noqa: BLE001
+            return Response({
+                "error": "unexpected_error",
+                "detail": str(e)[:500],
+            }, status=500)
+
+        session_dict = cl.get_settings()
+        session_json_string = json.dumps(session_dict)
+
+        return Response({
+            "session": session_json_string,
+            "port": port,
+        }, status=200)
