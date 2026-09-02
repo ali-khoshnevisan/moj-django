@@ -330,7 +330,7 @@ class InstagramLoginView(APIView):
         verification_code = ""
         if totp_seed:
             try:
-                verification_code = Client.totp_generate_code(totp_seed)
+                verification_code = cl.totp_generate_code(totp_seed)
             except Exception as e:  # noqa: BLE001
                 return Response({
                     "error": "could not generate a verification code from the provided totp seed",
