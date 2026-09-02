@@ -345,28 +345,28 @@ class InstagramLoginView(APIView):
                 "error": "two_factor_required",
                 "message": "This account requires a 2FA code. Provide 'totp' (the TOTP seed).",
                 "detail": str(e)[:500],
-            }, status=401)
+            }, status=400)
 
         except BadPassword as e:
             return Response({
                 "error": "bad_password",
                 "message": "Instagram rejected the password.",
                 "detail": str(e)[:500],
-            }, status=401)
+            }, status=400)
 
         except BadCredentials as e:
             return Response({
                 "error": "bad_credentials",
                 "message": "Username or password is invalid or missing.",
                 "detail": str(e)[:500],
-            }, status=401)
+            }, status=400)
 
         except ChallengeRequired as e:
             return Response({
                 "error": "challenge_required",
                 "message": "Instagram requires manual verification (checkpoint) for this account.",
                 "detail": str(e)[:500],
-            }, status=401)
+            }, status=400)
 
         except AccountSuspended as e:
             return Response({
@@ -394,7 +394,7 @@ class InstagramLoginView(APIView):
                 "error": "login_required",
                 "message": "Instagram rejected the session unexpectedly.",
                 "detail": str(e)[:500],
-            }, status=401)
+            }, status=429)
 
         except ClientError as e:
             return Response({
