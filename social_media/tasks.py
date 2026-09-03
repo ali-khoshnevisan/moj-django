@@ -534,6 +534,7 @@ def action_process():
             if task.bot.next_eligible_at > timezone.now():
                 continue
 
+            print('action post', task.action)
             if task.action == "post":
                 print('action post')
                 medias = []
