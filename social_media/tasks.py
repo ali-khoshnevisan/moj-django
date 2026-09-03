@@ -630,9 +630,9 @@ def crawl_campaign():
                                                "data": {"url": url,
                                                         "firefox_json_path": json.loads(bot.firefox_json_path),
                                                         "username": bot.username,
-                                                        "proxy_host": bot.proxy['host'],
+                                                        "proxy_host": settings.PROXY_HOST,
                                                         "proxy_username": bot.proxy['username'],
-                                                        "proxy_pass": bot.proxy['password'],
+                                                        "proxy_pass": settings.PROXY_PASSWORD,
                                                         "proxy_port": bot.proxy['port']}}).json()
                 task_id = response['task_id']
                 task_ids.append(task_id)
