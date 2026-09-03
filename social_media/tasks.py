@@ -535,6 +535,7 @@ def action_process():
                 continue
 
             if task.action == "post":
+                print('action post')
                 medias = []
                 for media in task.medias.all():
                     if media.media.url.startswith("http"):
