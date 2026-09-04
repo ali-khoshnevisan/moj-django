@@ -534,9 +534,7 @@ def action_process():
             if task.bot.next_eligible_at > timezone.now():
                 continue
 
-            print('action post', task.action)
             if task.action == "post":
-                print('action post')
                 medias = []
                 for media in task.medias.all():
                     if media.media.url.startswith("http"):
@@ -578,14 +576,16 @@ def action_process():
                 task.status = 'success'
                 task.result = {"detail": detail}
                 task.task_id = None
-                task.save(update_fields=["status", "result", "task_id"])
+                task.send_date = timezone.now()
+                task.save(update_fields=["status", "result", "task_id", "send_date"])
                 update_bot_next_eligible(task.bot)
 
             elif outcome == "not_login":
                 task.status = 'failed'
                 task.result = {"detail": detail}
                 task.task_id = None
-                task.save(update_fields=["status", "result", "task_id"])
+                task.send_date = timezone.now()
+                task.save(update_fields=["status", "result", "task_id", "send_date"])
                 ProfileModel.objects.filter(pk=task.bot_id).update(
                     status="profile-is-not-login",
                     session_refresh_error=detail,
@@ -595,7 +595,8 @@ def action_process():
                 task.status = 'failed'
                 task.result = {"detail": detail}
                 task.task_id = None
-                task.save(update_fields=["status", "result", "task_id"])
+                task.send_date = timezone.now()
+                task.save(update_fields=["status", "result", "task_id", "send_date"])
 
         except Exception as e:
             print(f"[action_process] ERROR on task {task.pk}: {e}")
