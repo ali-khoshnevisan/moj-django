@@ -779,7 +779,7 @@ def create_actions():
                                 comment_details={
                                     "user": post.campaign.user_id,
                                     "social_media": post.campaign.social_media,
-                                    "url": comment_url,
+                                    "url": user_url,
                                     "target_account_url": user_url,
                                     "bot": bot.id,
                                     "action": action,
