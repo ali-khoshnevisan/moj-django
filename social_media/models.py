@@ -154,7 +154,7 @@ class ActionModel(models.Model):
             self.send_date = next_allowed_time
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        # self.full_clean()
         super().save(*args, **kwargs)
 
     # @property
