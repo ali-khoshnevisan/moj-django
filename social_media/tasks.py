@@ -548,9 +548,9 @@ def action_process():
                                                "data": {"text": task.text,
                                                         "medias": medias,
                                                         "username": task.bot.username,
-                                                        "proxy_host": task.bot.proxy['host'],
+                                                        "proxy_host": settings.PROXY_HOST,
                                                         "proxy_username": task.bot.proxy['username'],
-                                                        "proxy_pass": task.bot.proxy['password'],
+                                                        "proxy_pass": settings.PROXY_PASSWORD,
                                                         "proxy_port": task.bot.proxy['port'],
                                                         "firefox_json_path": json.loads(
                                                             task.bot.firefox_json_path)}}).json()
