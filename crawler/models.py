@@ -17,7 +17,6 @@ account_status_choices = (
 )
 
 default_web_config = {
-    "url_cfg": "",
     "title_cfg": "",
     "description_cfg": "",
     "remove_cfg": "",
