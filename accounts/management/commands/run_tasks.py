@@ -4,7 +4,7 @@ from ai.tasks import ai_process
 from crawler.tasks import crawler, crawl_web_single_post, telegram_bot
 from social_media.tasks import action_process, profile_process, crawl_campaign, crawl_post_campaign, create_actions
 
-tasks = [ai_process, crawler, crawl_web_single_post, telegram_bot, crawl_campaign, action_process,
+tasks = [ai_process, crawler, crawl_web_single_post, telegram_bot, crawl_campaign, action_process, profile_process,
          crawl_post_campaign, create_actions]
 
 
