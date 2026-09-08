@@ -6,12 +6,8 @@ from django.utils import timezone
 from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostCampaignModel
 from ai.models import AIModel
 import json
-import os
 import logging
 from datetime import timedelta
-from celery import shared_task
-from django.db.models import Q
-from filelock import FileLock, Timeout
 from instagrapi import Client
 from instagrapi.exceptions import (
     ChallengeRequired, LoginRequired, BadPassword,
@@ -21,76 +17,6 @@ from instagrapi.exceptions import (
 from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger(__name__)
-
-REFRESH_INTERVAL = getattr(settings, "INSTAGRAM_SESSION_REFRESH_INTERVAL", timedelta(hours=3))
-MAX_PROFILES_PER_RUN = getattr(settings, "INSTAGRAM_SESSION_REFRESH_BATCH", 10)
-PAGE_TIMEOUT_MS = 60_000
-
-
-def _lock_path(profile_path):
-    # FileLock creates the lock FILE but not its parent DIRECTORY. Without
-    # this makedirs, a missing dir raises FileNotFoundError from acquire() —
-    # which is not a Timeout, so it escapes _refresh_one and kills the batch.
-    lock_dir = getattr(settings, "PROFILE_LOCK_DIR", "/tmp")
-    os.makedirs(lock_dir, exist_ok=True)
-    name = os.path.basename(profile_path.rstrip("/").rstrip("\\"))
-    return os.path.join(lock_dir, f"ffprofile-{name}.lock")
-
-
-def _extract_session_id(cookies):
-    for c in cookies:
-        if c.get("name") == "sessionid" and c.get("domain") in (".instagram.com", "instagram.com"):
-            return c.get("value")
-    return None
-
-
-def _dump_instagrapi_session(session_id, proxy_username, port, existing_settings=None):
-    """
-    Build an instagrapi session from a fresh sessionid, return JSON string.
-
-    `existing_settings` is the profile's CURRENT firefox_json_path content.
-    Reusing it is essential, not an optimisation: a bare Client() invents new
-    device UUIDs, device_settings and user_agent on every call, so each
-    refresh would look to Instagram like the account moved to a brand-new
-    phone — which is exactly what triggers ChallengeRequired. set_settings()
-    restores the stored device identity so the account stays consistent.
-    """
-    cl = Client()
-
-    if existing_settings:
-        try:
-            cl.set_settings(json.loads(existing_settings))
-        except Exception as e:  # noqa: BLE001
-            # Corrupt/empty stored settings shouldn't block the refresh, but
-            # it does mean a new device identity — worth knowing about.
-            logger.warning("could not reuse stored settings (new device id will be generated): %s", e)
-
-    proxy_url = (
-        f"{proxy_username}:{settings.PROXY_PASSWORD}"
-        f"@{settings.PROXY_HOST}:{port}"
-    )
-    cl.set_proxy(proxy_url)
-    cl.login_by_sessionid(session_id)
-
-    tmp_path = os.path.join(
-        getattr(settings, "PROFILE_LOCK_DIR", "/tmp"),
-        f"session-refresh-{os.getpid()}.json",
-    )
-    try:
-        cl.dump_settings(tmp_path)
-        with open(tmp_path, "r", encoding="utf-8") as f:
-            return f.read()
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-
-
-def _mark_not_login(profile, msg):
-    ProfileModel.objects.filter(pk=profile.pk).update(
-        status="profile-is-not-login",
-        session_refresh_error=msg,
-    )
-    return False, msg
 
 
 def _build_authenticated_client(profile):
@@ -293,173 +219,6 @@ def perform_instagram_action(profile, action, url, text=None):
         return "failed", f"unexpected error: {e}"[:500]
 
 
-def _refresh_one(profile):
-    profile_path = profile.firefox_profile_path
-    if not profile_path or not os.path.isdir(profile_path):
-        return False, "firefox profile directory missing on disk"
-
-    proxy = profile.proxy or {}
-    proxy_username = proxy.get("username")
-    port = proxy.get("port")
-    if not proxy_username or not port:
-        return False, "profile has no proxy username/port"
-
-    lock = FileLock(_lock_path(profile_path), timeout=0)
-    try:
-        lock.acquire()
-    except Timeout:
-        # Someone (probably main_ws, user editing live) holds the profile.
-        # Skipping is correct — we'll catch it on the next beat.
-        return False, "profile busy (in use elsewhere), skipped"
-
-    try:
-        with sync_playwright() as pw:
-            browser = pw.firefox.launch_persistent_context(
-                user_data_dir=profile_path,
-                headless=True,  # ← the whole point: invisible to the user
-                proxy={
-                    "server": f"http://{settings.PROXY_HOST}:{port}",
-                    "username": proxy_username,
-                    "password": settings.PROXY_PASSWORD,
-                },
-                locale="en-US",
-                extra_http_headers={"Accept-Language": "en-US,en;q=0.9"},
-                firefox_user_prefs={
-                    "intl.accept_languages": "en-US,en",
-                    "intl.locale.requested": "en-US",
-                    "javascript.use_us_english_locale": True,
-                    "media.peerconnection.enabled": False,
-                    "geo.enabled": False,
-                    "toolkit.telemetry.enabled": False,
-                    "network.predictor.enabled": False,
-                },
-            )
-            try:
-                page = browser.new_page()
-                page.set_viewport_size({"width": 1280, "height": 720})
-                page.add_init_script(
-                    "Object.defineProperty(navigator,'webdriver',{get:()=>undefined});"
-                )
-                page.goto(
-                    "https://www.instagram.com/",
-                    wait_until="domcontentloaded",
-                    timeout=PAGE_TIMEOUT_MS,
-                )
-                # Give Instagram a moment to set/rotate cookies.
-                page.wait_for_timeout(5000)
-
-                cookies = browser.cookies()
-                session_id = _extract_session_id(cookies)
-            finally:
-                browser.close()
-
-        if not session_id:
-            return _mark_not_login(
-                profile, "no sessionid cookie — manual re-login required"
-            )
-
-        try:
-            session_json = _dump_instagrapi_session(
-                session_id, proxy_username, port,
-                existing_settings=profile.firefox_json_path,
-            )
-        except ChallengeRequired:
-            return _mark_not_login(
-                profile,
-                "manual re-login required: Instagram challenge/checkpoint on this account",
-            )
-        except (LoginRequired, BadPassword):
-            return _mark_not_login(
-                profile,
-                "manual re-login required: credentials/session rejected",
-            )
-
-        if not session_json:
-            return False, "instagrapi produced an empty session"
-
-        profile.firefox_json_path = session_json
-        profile.session_updated_at = timezone.now()
-        profile.session_refresh_error = None
-        if profile.status == "profile-is-not-login":
-            profile.status = "added"
-        profile.save(update_fields=[
-            "firefox_json_path", "session_updated_at",
-            "session_refresh_error", "status",
-        ])
-        return True, "session refreshed"
-
-    except Exception as exc:  # noqa: BLE001 - we want any failure recorded, not raised
-        logger.exception("session refresh failed for profile %s", profile.pk)
-        return False, str(exc)[:500]
-    finally:
-        lock.release()
-
-
-@shared_task(name="social_media.refresh_instagram_sessions")
-def refresh_instagram_sessions():
-    """
-    Periodic entrypoint (Celery beat, every 3h). Picks up Instagram profiles
-    whose session is stale or never generated, and refreshes them one at a
-    time. Sequential on purpose: each refresh spawns a real Firefox, and
-    running ten at once will flatten the server.
-    """
-    cutoff = timezone.now() - REFRESH_INTERVAL
-
-    due = (
-        ProfileModel.objects
-        .filter(social_media="instagram")
-        .filter(status="added")
-        .exclude(firefox_profile_path__isnull=True)
-        .exclude(firefox_profile_path="")
-        # stale = never refreshed, or last refresh older than the cutoff
-        .filter(Q(session_updated_at__isnull=True) | Q(session_updated_at__lt=cutoff))
-        .order_by("session_updated_at")[:MAX_PROFILES_PER_RUN]
-    )
-
-    results = {"refreshed": 0, "skipped": 0, "failed": 0}
-    for profile in due:
-        ok, msg = _refresh_one(profile)
-        if ok:
-            results["refreshed"] += 1
-        elif "busy" in msg:
-            results["skipped"] += 1
-        else:
-            results["failed"] += 1
-            ProfileModel.objects.filter(pk=profile.pk).update(
-                session_refresh_error=msg,
-                # surfaces in the panel so the user knows to re-login manually
-                status="profile-is-not-login" if "manual re-login" in msg else profile.status,
-            )
-        logger.info("profile %s: %s", profile.pk, msg)
-
-    logger.info("refresh_instagram_sessions finished: %s", results)
-    return results
-
-
-@shared_task(name="social_media.refresh_single_instagram_session")
-def refresh_single_instagram_session(profile_id):
-    """
-    Manual/on-demand refresh for one profile — handy to wire to a
-    'Refresh session' button in the panel without waiting for the next beat.
-    """
-    try:
-        profile = ProfileModel.objects.get(
-            pk=profile_id, social_media="instagram", status="added"
-        )
-    except ProfileModel.DoesNotExist:
-        return {
-            "ok": False,
-            "msg": "profile not found, or its status is not 'added' "
-                   "(a profile flagged profile-is-not-login must be logged "
-                   "in again through the edit browser first)",
-        }
-
-    ok, msg = _refresh_one(profile)
-    if not ok:
-        ProfileModel.objects.filter(pk=profile.pk).update(session_refresh_error=msg)
-    return {"ok": ok, "msg": msg}
-
-
 def profile_process():
     print("START PROFILE SOCIAL MEDIA TASKS MANAGER")
     requested_profiles = ProfileModel.objects.filter(status='requested')
@@ -531,72 +290,29 @@ def action_process():
                 print(f"now is {timezone.now()}message will sent after {task.send_date}")
                 continue
 
-            if task.bot.next_eligible_at > timezone.now():
-                continue
+            medias = []
+            for media in task.medias.all():
+                if media.media.url.startswith("http"):
 
-            if task.action == "post":
-                medias = []
-                for media in task.medias.all():
-                    if media.media.url.startswith("http"):
-                        media_url = media.media.url
-                    else:
-                        media_url = urljoin("http://46.225.112.201:6688", media.media.url)
+                    media_url = media.media.url
+                else:
+                    media_url = urljoin("http://46.225.112.201:6688", media.media.url)
                     medias.append((media_url, media.media_type))
                     print('post medias: ', medias)
-                response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
-                                         json={"worker_type": f"{task.social_media}-{task.action}",
-                                               "data": {"text": task.text,
-                                                        "medias": medias,
-                                                        "username": task.bot.username,
-                                                        "proxy_host": settings.PROXY_HOST,
-                                                        "proxy_username": task.bot.proxy['username'],
-                                                        "proxy_pass": settings.PROXY_PASSWORD,
-                                                        "proxy_port": task.bot.proxy['port'],
-                                                        "firefox_json_path": json.loads(
-                                                            task.bot.firefox_json_path)}}).json()
-                task_id = response['task_id']
-                task.task_id = task_id
-                task.status = 'pending'
-                update_bot_next_eligible(task.bot)
-                task.save()
-                continue
-
+            response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
+                                     json={"worker_type": f"{task.social_media}-{task.action}",
+                                           "data": {"text": task.text,
+                                                    "url": task.url,
+                                                    "medias": medias,
+                                                    "username": task.bot.username,
+                                                    "proxy_host": settings.PROXY_HOST,
+                                                    "proxy_username": task.bot.proxy['username'],
+                                                    "proxy_pass": settings.PROXY_PASSWORD,
+                                                    "proxy_port": task.bot.proxy['port']}}).json()
+            task_id = response['task_id']
+            task.task_id = task_id
             task.status = 'pending'
-            task.save(update_fields=["status"])
-
-            outcome, detail = perform_instagram_action(
-                profile=task.bot,
-                action=task.action,
-                url=task.url,
-                text=task.text,
-            )
-            print(f"[action_process] task {task.pk} outcome={outcome}: {detail}")
-
-            if outcome == "success":
-                task.status = 'success'
-                task.result = {"detail": detail}
-                task.task_id = None
-                task.send_date = timezone.now()
-                task.save(update_fields=["status", "result", "task_id", "send_date"])
-                update_bot_next_eligible(task.bot)
-
-            elif outcome == "not_login":
-                task.status = 'failed'
-                task.result = {"detail": detail}
-                task.task_id = None
-                task.send_date = timezone.now()
-                task.save(update_fields=["status", "result", "task_id", "send_date"])
-                ProfileModel.objects.filter(pk=task.bot_id).update(
-                    status="profile-is-not-login",
-                    session_refresh_error=detail,
-                )
-
-            else:  # "failed"
-                task.status = 'failed'
-                task.result = {"detail": detail}
-                task.task_id = None
-                task.send_date = timezone.now()
-                task.save(update_fields=["status", "result", "task_id", "send_date"])
+            task.save()
 
         except Exception as e:
             print(f"[action_process] ERROR on task {task.pk}: {e}")
