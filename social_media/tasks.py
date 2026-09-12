@@ -299,11 +299,7 @@ def action_process():
                                            "data": {"text": task.text,
                                                     "url": task.url,
                                                     "medias": medias,
-                                                    "username": task.bot.username,
-                                                    "proxy_host": settings.PROXY_HOST,
-                                                    "proxy_username": task.bot.proxy['username'],
-                                                    "proxy_pass": settings.PROXY_PASSWORD,
-                                                    "proxy_port": task.bot.proxy['port']}}).json()
+                                                    "username": task.bot.username}}).json()
             task_id = response['task_id']
             task.task_id = task_id
             task.status = 'pending'
@@ -342,12 +338,7 @@ def crawl_campaign():
                 response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                          json={"worker_type": f"{campaign.social_media}-profile",
                                                "data": {"url": url,
-                                                        "firefox_json_path": json.loads(bot.firefox_json_path),
-                                                        "username": bot.username,
-                                                        "proxy_host": settings.PROXY_HOST,
-                                                        "proxy_username": bot.proxy['username'],
-                                                        "proxy_pass": settings.PROXY_PASSWORD,
-                                                        "proxy_port": bot.proxy['port']}}).json()
+                                                        "username": bot.username}}).json()
                 task_id = response['task_id']
                 task_ids.append(task_id)
 
