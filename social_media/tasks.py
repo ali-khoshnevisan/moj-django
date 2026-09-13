@@ -7,7 +7,7 @@ from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostCam
 from ai.models import AIModel
 import json
 import logging
-from datetime import timedelta
+from datetime import timedelta, datetime
 from instagrapi import Client
 from instagrapi.exceptions import (
     ChallengeRequired, LoginRequired, BadPassword,
@@ -276,8 +276,8 @@ def update_bot_next_eligible(profile):
 def action_process():
     print("START ACTION SOCIAL MEDIA TASKS MANAGER")
     requested_tasks = ActionModel.objects.filter(status='requested', working=True)
+    flag = 0
     for task in requested_tasks:
-        flag = 0
         try:
             if task.bot.status == "profile-is-not-login":
                 continue
@@ -287,6 +287,9 @@ def action_process():
                 continue
 
             if task.bot.next_eligible_at > timezone.now():
+                continue
+
+            if task.bot.sleep_from < datetime.now().hour < task.bot.sleep_to:
                 continue
 
             if flag > 5:
