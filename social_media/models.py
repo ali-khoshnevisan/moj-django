@@ -46,7 +46,7 @@ class ProfileModel(models.Model):
     posts_count = models.IntegerField(default=0)
     profile_image = models.URLField(blank=True, null=True)
     image = models.FileField(blank=True, null=True, upload_to=upload_to_profile)
-    next_eligible_at = models.DateTimeField(blank=True, null=True)
+    next_eligible_at = models.DateTimeField(default=timezone.now)
     last_update = models.DateTimeField(auto_now_add=True)
     sleep_from = models.IntegerField(default=4)
     sleep_to = models.IntegerField(default=4)
