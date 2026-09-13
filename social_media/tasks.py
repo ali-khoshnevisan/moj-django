@@ -270,19 +270,27 @@ def profile_process():
 def update_bot_next_eligible(profile):
     pause_minutes = random.randint(1, 59)
     ProfileModel.objects.filter(pk=profile.pk).update(
-        next_eligible_at=timezone.now() + timedelta(hours=profile.pause_time, minutes=pause_minutes),
+        next_eligible_at=timezone.now() + timedelta(hours=1, minutes=pause_minutes),
     )
 
 def action_process():
     print("START ACTION SOCIAL MEDIA TASKS MANAGER")
     requested_tasks = ActionModel.objects.filter(status='requested', working=True)
     for task in requested_tasks:
+        flag = 0
         try:
             if task.bot.status == "profile-is-not-login":
                 continue
 
             if task.send_date > timezone.now():
                 print(f"now is {timezone.now()}message will sent after {task.send_date}")
+                continue
+
+            if task.bot.next_eligible_at > timezone.now():
+                continue
+
+            if flag > 5:
+                update_bot_next_eligible(task.bot)
                 continue
 
             medias = []
@@ -301,6 +309,7 @@ def action_process():
                                                     "medias": medias,
                                                     "username": task.bot.username}}).json()
             task_id = response['task_id']
+            flag += 1
             task.task_id = task_id
             task.status = 'pending'
             task.save()

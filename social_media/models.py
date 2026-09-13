@@ -29,6 +29,9 @@ profile_status_choices = (
 
 default_max_action_choices = 5
 
+# class ProfileLogModel(models.Model):
+#     username = models.CharField(max_length=100)
+#     log = models.JSONField(blank=True, null=True)
 
 class ProfileModel(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_profiles')
@@ -43,6 +46,7 @@ class ProfileModel(models.Model):
     posts_count = models.IntegerField(default=0)
     profile_image = models.URLField(blank=True, null=True)
     image = models.FileField(blank=True, null=True, upload_to=upload_to_profile)
+    next_eligible_at = models.DateTimeField(blank=True, null=True)
     last_update = models.DateTimeField(auto_now_add=True)
     sleep_from = models.IntegerField(default=4)
     sleep_to = models.IntegerField(default=4)
