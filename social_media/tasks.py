@@ -222,7 +222,7 @@ def create_actions():
                         url=comment_url,
                         target_account_url=user_url,
                         target_post=post_url,
-                        bot=bot,
+                        bot_id=bot.id,
                         action=action,
                         campaign=post.campaign
                     )
@@ -236,7 +236,7 @@ def create_actions():
                         url=user_url,
                         target_account_url=user_url,
                         target_post=post_url,
-                        bot=bot,
+                        bot_id=bot.id,
                         action=action,
                         campaign=post.campaign
                     )
@@ -275,7 +275,7 @@ def create_actions():
                             "url": comment_url,
                             "target_account_url": user_url,
                             "target_post": post_url,
-                            "bot": bot.id,
+                            "bot_id": bot.id,
                             "action": action,
                             "campaign": post.campaign.id
                         })
@@ -299,7 +299,7 @@ def create_actions():
                                 "url": user_url,
                                 "target_account_url": user_url,
                                 "target_post": post_url,
-                                "bot": bot.id,
+                                "bot_id": bot.id,
                                 "action": action,
                                 "campaign": post.campaign.id
                             })

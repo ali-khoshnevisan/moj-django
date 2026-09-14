@@ -31,7 +31,6 @@ class AIModel(models.Model):
         ordering = ['-last_update']
 
     def comment_answer(self):
-        print('bot', self.comment_details.get("bot"))
         if not (self.comment_details and self.response):
             print("creating comment action failed")
             print("comment details:", self.comment_details)
@@ -44,7 +43,7 @@ class AIModel(models.Model):
             url=self.comment_details.get("url"),
             target_account_url=self.comment_details.get("target_account_url"),
             target_post=self.comment_details.get("target_post"),
-            bot_id=self.comment_details.get("bot"),
+            bot_id=self.comment_details.get("bot_id"),
             campaign_id=self.comment_details.get("campaign"),
             social_media=self.comment_details.get("social_media"),
             action=self.comment_details.get("action")

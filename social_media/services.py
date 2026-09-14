@@ -2,7 +2,7 @@ from .models import ActionModel
 
 
 def create_action(**kwargs):
-    bot = kwargs["bot"]
+    bot_id = kwargs["bot_id"]
     target_account_url = kwargs.get("target_account_url")
     campaign = kwargs.get("campaign")
 
@@ -14,7 +14,7 @@ def create_action(**kwargs):
 
     if not is_campaign_url:
         exists = ActionModel.objects.filter(
-            bot=bot,
+            bot_id=bot_id,
             target_account_url=target_account_url
         ).exists()
 
