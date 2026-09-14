@@ -206,6 +206,7 @@ class CampaignSocialMediaModel(models.Model):
     comment_prompt = models.TextField(blank=True, null=True)
     direct_prompt = models.TextField(blank=True, null=True)
     working = models.BooleanField(default=True, db_index=True)
+    is_secondary = models.BooleanField(default=False, db_index=True)
     status = models.CharField(max_length=10, choices=action_status_choices, default="requested")
     task_ids = models.JSONField(default=list, blank=True, null=True)
 

@@ -1,9 +1,8 @@
-from .models import ActionModel
+from .models import ActionModel, CampaignSocialMediaModel
 
 
 def create_action(**kwargs):
     bot_id = kwargs["bot_id"]
-    print("bot_id:", bot_id)
     target_account_url = kwargs.get("target_account_url")
     campaign = kwargs.get("campaign")
 
@@ -20,6 +19,27 @@ def create_action(**kwargs):
         ).exists()
 
         if exists:
+            create_secondary_campaign(
+                bot_id,
+                target_account_url,
+                campaign,
+            )
             return None
 
     return ActionModel.objects.create(**kwargs)
+
+def create_secondary_campaign(bot_id, target_account_url, campaign):
+    if campaign.is_secondary:
+        return
+
+    new_campaign = CampaignSocialMediaModel.objects.create(
+        user=campaign.user,
+        social_media=campaign.social_media,
+        urls=[target_account_url],
+        actions=campaign.actions,
+        comment_prompt=campaign.comment_prompt,
+        direct_prompt=campaign.direct_prompt,
+        is_secondary=True,
+    )
+
+    new_campaign.bots.add(bot_id)
