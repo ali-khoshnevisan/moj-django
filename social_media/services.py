@@ -3,6 +3,7 @@ from .models import ActionModel
 
 def create_action(**kwargs):
     bot_id = kwargs["bot_id"]
+    print("bot_id:", bot_id)
     target_account_url = kwargs.get("target_account_url")
     campaign = kwargs.get("campaign")
 
