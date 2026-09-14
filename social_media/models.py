@@ -116,11 +116,11 @@ class ActionModel(models.Model):
     class Meta:
         ordering = ['-last_update']
         constraints = [
-            models.UniqueConstraint(
-                fields=["target_account_url", "bot"],
-                condition=models.Q(target_account_url__isnull=False),
-                name="unique_target_account_per_bot"
-            ),
+            # models.UniqueConstraint(
+            #     fields=["target_account_url", "bot"],
+            #     condition=models.Q(target_account_url__isnull=False),
+            #     name="unique_target_account_per_bot"
+            # ),
             models.UniqueConstraint(
                 fields=["target_post", "bot"],
                 condition=models.Q(target_post__isnull=False),

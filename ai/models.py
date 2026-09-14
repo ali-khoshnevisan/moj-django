@@ -1,6 +1,7 @@
 from django.db import models
 from social_media.models import ActionModel
 from crawler.models import PostModel
+from social_media.services import create_action
 
 ai_type_choices = (
     ('grok', 'grok'),
@@ -36,7 +37,7 @@ class AIModel(models.Model):
             print("response:", self.response)
             return
 
-        ActionModel.objects.create(
+        create_action(
             user_id=self.comment_details.get("user"),
             text=self.response,
             url=self.comment_details.get("url"),

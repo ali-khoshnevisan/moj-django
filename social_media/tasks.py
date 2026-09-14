@@ -7,7 +7,7 @@ from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostCam
 from ai.models import AIModel
 from datetime import timedelta, datetime
 from urllib.parse import urlparse
-
+from .services import create_action
 
 def profile_process():
     print("START PROFILE SOCIAL MEDIA TASKS MANAGER")
@@ -206,106 +206,208 @@ def create_actions():
 
         first_comment_text = comments[0].get('text', '')
 
-        for index, comment in enumerate(comments):
-            user_url = comment.get('user_url', '')
-            comment_url = comment.get('link', '')
-            comment_text = comment.get('text', '')
+        for bot in bots:
+            selected_comment = random.choice(comments)
+            user_url = selected_comment.get('user_url', '')
+            comment_url = selected_comment.get('link', '')
+            comment_text = selected_comment.get('text', '')
             post_url = get_instagram_post_url(comment_url)
             action = random.choice(actions)
-            for bot in bots:
-                if action == "like":
-                    try:
-                        ActionModel.objects.create(
-                            user=post.campaign.user,
-                            social_media=post.campaign.social_media,
-                            url=comment_url,
-                            target_account_url=user_url,
-                            target_post=post_url,
-                            bot=bot,
-                            action=action,
-                            campaign=post.campaign
-                        )
-                    except Exception as e:
-                        print(e)
-                elif action == "follow":
-                    try:
-                        ActionModel.objects.create(
-                            user=post.campaign.user,
-                            social_media=post.campaign.social_media,
-                            url=user_url,
-                            target_account_url=user_url,
-                            target_post=post_url,
-                            bot=bot,
-                            action=action,
-                            campaign=post.campaign
-                        )
-                    except Exception as e:
-                        print(e)
-                elif action == "comment":
-                    try:
-                        caption_context = ""
-                        if index > 0 and first_comment_text:
-                            caption_context = f"""این کامنت برای این پست گذاشته شده و باید بهش یک جواب مرتبط بدی.
-                            کپشن پست:
-                            {first_comment_text}
-                            """
-                        if post.campaign.comment_prompt:
-                            prompt = f"""
-                            {post.campaign.comment_prompt}
-                            {caption_context}
-                            فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
-                            کامنت:
-                            {comment_text}
-                            """
-                        else:
-                            prompt = f"""
-                            یک جواب برای این کامنت تولید کن
-                            {caption_context}
-                            فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
-                            کامنت:
-                            {comment_text}
-                            """
+
+            if action == "like":
+                try:
+                    create_action(
+                        user=post.campaign.user,
+                        social_media=post.campaign.social_media,
+                        url=comment_url,
+                        target_account_url=user_url,
+                        target_post=post_url,
+                        bot=bot,
+                        action=action,
+                        campaign=post.campaign
+                    )
+                except Exception as e:
+                    print(e)
+            elif action == "follow":
+                try:
+                    create_action(
+                        user=post.campaign.user,
+                        social_media=post.campaign.social_media,
+                        url=user_url,
+                        target_account_url=user_url,
+                        target_post=post_url,
+                        bot=bot,
+                        action=action,
+                        campaign=post.campaign
+                    )
+                except Exception as e:
+                    print(e)
+            elif action == "comment":
+                try:
+                    caption_context = ""
+                    if first_comment_text and first_comment_text == comment_text:
+                        caption_context = f"""این کامنت برای این پست گذاشته شده و باید بهش یک جواب مرتبط بدی.
+                        کپشن پست:
+                        {first_comment_text}
+                        """
+                    if post.campaign.comment_prompt:
+                        prompt = f"""
+                        {post.campaign.comment_prompt}
+                        {caption_context}
+                        فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
+                        کامنت:
+                        {comment_text}
+                        """
+                    else:
+                        prompt = f"""
+                        یک جواب برای این کامنت تولید کن
+                        {caption_context}
+                        فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
+                        کامنت:
+                        {comment_text}
+                        """
+                    AIModel.objects.create(
+                        ai_type="chatgpt",
+                        request=prompt,
+                        comment_details={
+                            "user": post.campaign.user_id,
+                            "social_media": post.campaign.social_media,
+                            "url": comment_url,
+                            "target_account_url": user_url,
+                            "target_post": post_url,
+                            "bot": bot.id,
+                            "action": action,
+                            "campaign": post.campaign.id
+                        })
+                except Exception as e:
+                    print(e)
+
+            elif action == "direct":
+                try:
+                    if post.campaign.direct_prompt:
+                        prompt = f"""
+                        {post.campaign.direct_prompt}
+                        فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
+                        """
+
                         AIModel.objects.create(
                             ai_type="chatgpt",
                             request=prompt,
                             comment_details={
                                 "user": post.campaign.user_id,
                                 "social_media": post.campaign.social_media,
-                                "url": comment_url,
+                                "url": user_url,
                                 "target_account_url": user_url,
                                 "target_post": post_url,
                                 "bot": bot.id,
                                 "action": action,
                                 "campaign": post.campaign.id
                             })
-                    except Exception as e:
-                        print(e)
+                except Exception as e:
+                    print(e)
+            else:
+                continue
 
-                elif action == "direct":
-                    try:
-                        if post.campaign.direct_prompt:
-                            prompt = f"""
-                            {post.campaign.direct_prompt}
-                            فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
-                            """
-
-                            AIModel.objects.create(
-                                ai_type="chatgpt",
-                                request=prompt,
-                                comment_details={
-                                    "user": post.campaign.user_id,
-                                    "social_media": post.campaign.social_media,
-                                    "url": user_url,
-                                    "target_account_url": user_url,
-                                    "target_post": post_url,
-                                    "bot": bot.id,
-                                    "action": action,
-                                    "campaign": post.campaign.id
-                                })
-                    except Exception as e:
-                        print(e)
-                else:
-                    continue
+        # for index, comment in enumerate(comments):
+        #     user_url = comment.get('user_url', '')
+        #     comment_url = comment.get('link', '')
+        #     comment_text = comment.get('text', '')
+        #     post_url = get_instagram_post_url(comment_url)
+        #     action = random.choice(actions)
+        #     for bot in bots:
+        #         if action == "like":
+        #             try:
+        #                 ActionModel.objects.create(
+        #                     user=post.campaign.user,
+        #                     social_media=post.campaign.social_media,
+        #                     url=comment_url,
+        #                     target_account_url=user_url,
+        #                     target_post=post_url,
+        #                     bot=bot,
+        #                     action=action,
+        #                     campaign=post.campaign
+        #                 )
+        #             except Exception as e:
+        #                 print(e)
+        #         elif action == "follow":
+        #             try:
+        #                 ActionModel.objects.create(
+        #                     user=post.campaign.user,
+        #                     social_media=post.campaign.social_media,
+        #                     url=user_url,
+        #                     target_account_url=user_url,
+        #                     target_post=post_url,
+        #                     bot=bot,
+        #                     action=action,
+        #                     campaign=post.campaign
+        #                 )
+        #             except Exception as e:
+        #                 print(e)
+        #         elif action == "comment":
+        #             try:
+        #                 caption_context = ""
+        #                 if index > 0 and first_comment_text:
+        #                     caption_context = f"""این کامنت برای این پست گذاشته شده و باید بهش یک جواب مرتبط بدی.
+        #                     کپشن پست:
+        #                     {first_comment_text}
+        #                     """
+        #                 if post.campaign.comment_prompt:
+        #                     prompt = f"""
+        #                     {post.campaign.comment_prompt}
+        #                     {caption_context}
+        #                     فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
+        #                     کامنت:
+        #                     {comment_text}
+        #                     """
+        #                 else:
+        #                     prompt = f"""
+        #                     یک جواب برای این کامنت تولید کن
+        #                     {caption_context}
+        #                     فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
+        #                     کامنت:
+        #                     {comment_text}
+        #                     """
+        #                 AIModel.objects.create(
+        #                     ai_type="chatgpt",
+        #                     request=prompt,
+        #                     comment_details={
+        #                         "user": post.campaign.user_id,
+        #                         "social_media": post.campaign.social_media,
+        #                         "url": comment_url,
+        #                         "target_account_url": user_url,
+        #                         "target_post": post_url,
+        #                         "bot": bot.id,
+        #                         "action": action,
+        #                         "campaign": post.campaign.id
+        #                     })
+        #             except Exception as e:
+        #                 print(e)
+        #
+        #         elif action == "direct":
+        #             try:
+        #                 if post.campaign.direct_prompt:
+        #                     prompt = f"""
+        #                     {post.campaign.direct_prompt}
+        #                     فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
+        #                     """
+        #
+        #                     AIModel.objects.create(
+        #                         ai_type="chatgpt",
+        #                         request=prompt,
+        #                         comment_details={
+        #                             "user": post.campaign.user_id,
+        #                             "social_media": post.campaign.social_media,
+        #                             "url": user_url,
+        #                             "target_account_url": user_url,
+        #                             "target_post": post_url,
+        #                             "bot": bot.id,
+        #                             "action": action,
+        #                             "campaign": post.campaign.id
+        #                         })
+        #             except Exception as e:
+        #                 print(e)
+        #         else:
+        #             continue
 
         post.status = "created"
         post.save()
