@@ -245,7 +245,7 @@ def create_actions():
             elif action == "comment":
                 try:
                     caption_context = ""
-                    if first_comment_text and first_comment_text == comment_text:
+                    if first_comment_text and first_comment_text != comment_text:
                         caption_context = f"""این کامنت برای این پست گذاشته شده و باید بهش یک جواب مرتبط بدی.
                         کپشن پست:
                         {first_comment_text}
