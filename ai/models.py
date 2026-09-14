@@ -41,6 +41,7 @@ class AIModel(models.Model):
             text=self.response,
             url=self.comment_details.get("url"),
             target_account_url=self.comment_details.get("target_account_url"),
+            target_post=self.comment_details.get("target_post"),
             bot_id=self.comment_details.get("bot"),
             campaign_id=self.comment_details.get("campaign"),
             social_media=self.comment_details.get("social_media"),

@@ -100,6 +100,7 @@ class ActionModel(models.Model):
     social_media = models.CharField(max_length=10, choices=social_media_choices)
     url = models.URLField(blank=True, null=True)
     target_account_url = models.CharField(max_length=100, blank=True, null=True)
+    target_post = models.CharField(max_length=100, blank=True, null=True)
     last_update = models.DateTimeField(auto_now=True)
     action = models.CharField(max_length=20)
     status = models.CharField(max_length=10, default="requested", choices=action_status_choices)
@@ -117,8 +118,14 @@ class ActionModel(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["target_account_url", "bot"],
+                condition=models.Q(target_account_url__isnull=False),
                 name="unique_target_account_per_bot"
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["target_post", "bot"],
+                condition=models.Q(target_post__isnull=False),
+                name="unique_target_post_per_bot"
+            ),
         ]
 
     def clean(self):

@@ -5,218 +5,8 @@ from django.conf import settings
 from django.utils import timezone
 from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostCampaignModel
 from ai.models import AIModel
-import json
-import logging
 from datetime import timedelta, datetime
-from instagrapi import Client
-from instagrapi.exceptions import (
-    ChallengeRequired, LoginRequired, BadPassword,
-    FeedbackRequired, AccountSuspended, PleaseWaitFewMinutes,
-    ClientError,
-)
-from playwright.sync_api import sync_playwright
-
-logger = logging.getLogger(__name__)
-
-
-def _build_authenticated_client(profile):
-    if not profile.firefox_json_path:
-        return None, "no session stored for this profile — needs initial login"
-
-    try:
-        settings_dict = json.loads(profile.firefox_json_path)
-    except (json.JSONDecodeError, TypeError) as e:
-        return None, f"stored session is not valid JSON: {e}"
-
-    if isinstance(settings_dict, str):
-        logger.warning(
-            "profile %s has double-encoded firefox_json_path — decoding again "
-            "and repairing the stored value",
-            profile.pk,
-        )
-        try:
-            settings_dict = json.loads(settings_dict)
-        except (json.JSONDecodeError, TypeError) as e:
-            return None, f"stored session is double-encoded AND the inner value is not valid JSON: {e}"
-
-        if isinstance(settings_dict, dict):
-            # Repair it now so this profile doesn't hit this path again on
-            # its next action.
-            ProfileModel.objects.filter(pk=profile.pk).update(
-                firefox_json_path=json.dumps(settings_dict)
-            )
-
-    if not settings_dict or not isinstance(settings_dict, dict):
-        return None, "stored session is empty or not a JSON object"
-
-    proxy = profile.proxy or {}
-    proxy_username = proxy.get("username")
-    proxy_port = proxy.get("port")
-    if not proxy_username or not proxy_port:
-        return None, "profile has no proxy username/port"
-
-    cl = Client()
-    cl.set_settings(settings_dict)
-
-    proxy_url = (
-        f"{proxy_username}:{settings.PROXY_PASSWORD}"
-        f"@{settings.PROXY_HOST}:{proxy_port}"
-    )
-    cl.set_proxy(proxy_url)
-
-    if not cl.user_id:
-        return None, "stored session has no logged-in user — needs re-login"
-
-    return cl, None
-
-
-def _normalize_post_url(url):
-    from urllib.parse import urlparse
-
-    parsed = urlparse(url)
-    parts = [p for p in parsed.path.split("/") if p]
-
-    for prefix in ("p", "reel", "tv"):
-        if prefix in parts:
-            idx = parts.index(prefix)
-            if idx + 1 < len(parts):
-                shortcode = parts[idx + 1]
-                return f"{parsed.scheme}://{parsed.netloc}/{prefix}/{shortcode}/"
-
-    return url
-
-
-def _extract_comment_id(url):
-    from urllib.parse import urlparse
-
-    parts = [p for p in urlparse(url).path.split("/") if p]
-    if "c" in parts:
-        idx = parts.index("c")
-        if idx + 1 < len(parts) and parts[idx + 1].isdigit():
-            return parts[idx + 1]
-    return None
-
-
-def _resolve_media_target(client, url):
-    """like/comment target: a POST url. Normalized first (see
-    _normalize_post_url) in case it's actually a comment permalink."""
-    return client.media_pk_from_url(_normalize_post_url(url))
-
-
-def _resolve_user_target(client, url):
-    """follow/direct target: a PROFILE url. instagrapi's
-    user_id_from_username only strips '@'/whitespace, it does NOT parse a
-    full URL — so the username has to be pulled out of the path here."""
-    from urllib.parse import urlparse
-
-    path = urlparse(url).path.strip("/")
-    if not path:
-        raise ValueError(f"could not extract a username from url: {url!r}")
-
-    username = path.split("/")[0]
-    # Guards against a post URL (/p/<code>/) or other non-profile path
-    # accidentally reaching here and being read as a "username".
-    if username in ("p", "reel", "reels", "stories", "tv"):
-        raise ValueError(
-            f"url looks like a post/reel/story url, not a profile url: {url!r}"
-        )
-
-    return client.user_id_from_username(username)
-
-
-def perform_instagram_action(profile, action, url, text=None):
-    if action not in ("like", "comment", "follow", "direct"):
-        return "failed", f"action '{action}' is not supported by direct execution yet"
-
-    client, err = _build_authenticated_client(profile)
-    if client is None:
-        return "not_login", err
-
-    try:
-        if action == "like":
-            comment_id = _extract_comment_id(url)
-            if comment_id:
-                client.comment_like(comment_id)
-                return "success", f"liked comment {comment_id}"
-            media_id = _resolve_media_target(client, url)
-            client.media_like(media_id)
-            return "success", f"liked media {media_id}"
-
-        elif action == "comment":
-            if not text:
-                return "failed", "comment action requires text"
-
-            reply_to = _extract_comment_id(url)
-            media_id = _resolve_media_target(client, url)
-
-            if reply_to:
-                client.media_comment(media_id, text, replied_to_comment_id=reply_to)
-                return "success", f"replied to comment {reply_to} on media {media_id}"
-
-            client.media_comment(media_id, text)
-            return "success", f"commented on media {media_id}"
-
-        elif action == "follow":
-            user_id = _resolve_user_target(client, url)
-            client.user_follow(user_id)
-            return "success", f"followed user {user_id}"
-
-        elif action == "direct":
-            if not text:
-                return "failed", "direct action requires text"
-            user_id = _resolve_user_target(client, url)
-            client.direct_send(text, user_ids=[int(user_id)])
-            return "success", f"sent direct to user {user_id}"
-
-    except ValueError as e:
-        # our own target-resolution errors (bad/unparseable url)
-        return "failed", str(e)[:500]
-
-    except TypeError as e:
-        raw_response = getattr(client, "last_json", "<no last_json available>")
-        logger.warning(
-            "malformed API response for %s on profile %s: %s | last_json=%r",
-            action, profile.pk, e, raw_response,
-        )
-        return "failed", f"malformed response from instagram/proxy: {str(raw_response)[:300]}"
-
-    except AccountSuspended as e:
-        # More severe than a normal challenge — the account itself is
-        # suspended, not just needing re-verification. Still routed to
-        # profile-is-not-login since that's the only "needs attention"
-        # status this model has, but the message makes the real cause clear.
-        return "not_login", f"account suspended: {e}"[:500]
-
-    except ChallengeRequired as e:
-        return "not_login", f"challenge/checkpoint required: {e}"[:500]
-
-    except (LoginRequired, BadPassword) as e:
-        return "not_login", f"session rejected: {e}"[:500]
-
-    except FeedbackRequired as e:
-        # THIS is Instagram's rate-limit/spam-block signal — distinct from
-        # a dead session. The account is still logged in; it's being
-        # throttled for acting too fast/too much. Worth its own message
-        # even though it maps to the same profile-is-not-login status,
-        # since "your credentials are fine, you were just too aggressive"
-        # is a very different thing to act on than "log back in".
-        return "not_login", f"rate-limited by Instagram (feedback_required): {e}"[:500]
-
-    except PleaseWaitFewMinutes as e:
-        # Transient throttle, not an auth problem — do NOT mark the
-        # profile not-login for this one, just fail this action so it can
-        # be retried on the normal schedule.
-        return "failed", f"instagram asked to wait a few minutes: {e}"[:500]
-
-    except ClientError as e:
-        # Catch-all for any other instagrapi/API-level failure we didn't
-        # anticipate above. Treated as a normal action failure, not an
-        # auth failure, since we don't actually know it's a login problem.
-        return "failed", f"instagrapi error: {e}"[:500]
-
-    except Exception as e:  # noqa: BLE001
-        logger.exception("unexpected error performing %s for profile %s", action, profile.pk)
-        return "failed", f"unexpected error: {e}"[:500]
+from urllib.parse import urlparse
 
 
 def profile_process():
@@ -393,6 +183,14 @@ def crawl_post_campaign():
 
     print("FINISH CAMPAIGN POST SOCIAL MEDIA TASKS MANAGER")
 
+def get_instagram_post_url(url):
+    path = urlparse(url).path
+    parts = path.strip("/").split("/")
+
+    if len(parts) >= 2 and parts[0] == "p":
+        return parts[1]
+
+    return None
 
 def create_actions():
     print("START CAMPAIGN CREATE ACTION SOCIAL MEDIA TASKS MANAGER")
@@ -412,6 +210,7 @@ def create_actions():
             user_url = comment.get('user_url', '')
             comment_url = comment.get('link', '')
             comment_text = comment.get('text', '')
+            post_url = get_instagram_post_url(comment_url)
             action = random.choice(actions)
             for bot in bots:
                 if action == "like":
@@ -421,6 +220,7 @@ def create_actions():
                             social_media=post.campaign.social_media,
                             url=comment_url,
                             target_account_url=user_url,
+                            target_post=post_url,
                             bot=bot,
                             action=action,
                             campaign=post.campaign
@@ -434,6 +234,7 @@ def create_actions():
                             social_media=post.campaign.social_media,
                             url=user_url,
                             target_account_url=user_url,
+                            target_post=post_url,
                             bot=bot,
                             action=action,
                             campaign=post.campaign
@@ -472,6 +273,7 @@ def create_actions():
                                 "social_media": post.campaign.social_media,
                                 "url": comment_url,
                                 "target_account_url": user_url,
+                                "target_post": post_url,
                                 "bot": bot.id,
                                 "action": action,
                                 "campaign": post.campaign.id
@@ -495,6 +297,7 @@ def create_actions():
                                     "social_media": post.campaign.social_media,
                                     "url": user_url,
                                     "target_account_url": user_url,
+                                    "target_post": post_url,
                                     "bot": bot.id,
                                     "action": action,
                                     "campaign": post.campaign.id
