@@ -80,9 +80,6 @@ class TaskUpdateManager(APIView):
         worker_type = valid_data['worker_type']
         status = valid_data['status']
         result = valid_data['result']
-        print('worker_type', worker_type)
-        print('result', result)
-        print('status', status)
         model = self.model_determiner(worker_type)
         if not model:
             return Response({"message": "This worker type is not allowed"}, status=400)

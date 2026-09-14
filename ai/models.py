@@ -31,6 +31,7 @@ class AIModel(models.Model):
         ordering = ['-last_update']
 
     def comment_answer(self):
+        print('bot', self.comment_details.get("bot"))
         if not (self.comment_details and self.response):
             print("creating comment action failed")
             print("comment details:", self.comment_details)
