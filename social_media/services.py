@@ -4,6 +4,7 @@ from .models import ActionModel, CampaignSocialMediaModel
 def create_action(**kwargs):
     bot_id = kwargs["bot_id"]
     target_account_url = kwargs.get("target_account_url")
+    target_post = kwargs.get("target_post")
     campaign = kwargs.get("campaign")
 
     is_campaign_url = (
@@ -15,7 +16,7 @@ def create_action(**kwargs):
     if not is_campaign_url:
         exists = ActionModel.objects.filter(
             bot_id=bot_id,
-            target_account_url=target_account_url
+            target_post=target_post
         ).exists()
 
         if exists:
