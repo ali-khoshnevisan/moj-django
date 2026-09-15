@@ -38,10 +38,19 @@ def create_secondary_campaign(bot_id, target_account_url, campaign):
     if campaign.is_secondary:
         return
 
-    campaign_exists = CampaignSocialMediaModel.objects.filter(
-        bots__id=bot_id,
-        urls__contains=[target_account_url],
-    ).exists()
+    # campaign_exists = CampaignSocialMediaModel.objects.filter(
+    #     bots__id=bot_id,
+    #     urls__contains=[target_account_url],
+    # ).exists()
+
+    campaigns = CampaignSocialMediaModel.objects.filter(
+        bots__id=bot_id
+    )
+
+    campaign_exists = any(
+        target_account_url in (campaign.urls or [])
+        for campaign in campaigns
+    )
 
     if campaign_exists:
         return
