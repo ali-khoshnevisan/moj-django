@@ -321,6 +321,7 @@ class TaskUpdateManager(APIView):
                 profile.task_ids = []
                 profile.save()
             else:
+                print('result', result)
                 profile.posts = list(set(result["last_12_posts"] + profile.posts))
                 profile.save()
 
