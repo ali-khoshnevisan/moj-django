@@ -14,12 +14,17 @@ def create_action(**kwargs):
     )
 
     if not is_campaign_url:
-        exists = ActionModel.objects.filter(
+        post_duplicate = ActionModel.objects.filter(
             bot_id=bot_id,
             target_post=target_post
         ).exists()
 
-        if exists:
+        account_duplicate = ActionModel.objects.filter(
+            bot_id=bot_id,
+            target_account_url=target_account_url
+        ).exists()
+
+        if post_duplicate and not account_duplicate:
             create_secondary_campaign(
                 bot_id,
                 target_account_url,
@@ -31,6 +36,14 @@ def create_action(**kwargs):
 
 def create_secondary_campaign(bot_id, target_account_url, campaign):
     if campaign.is_secondary:
+        return
+
+    campaign_exists = CampaignSocialMediaModel.objects.filter(
+        bots__id=bot_id,
+        urls__contains=[target_account_url],
+    ).exists()
+
+    if campaign_exists:
         return
 
     new_campaign = CampaignSocialMediaModel.objects.create(
