@@ -7,7 +7,7 @@ from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostCam
 from ai.models import AIModel
 from datetime import timedelta, datetime
 from urllib.parse import urlparse
-from .services import create_action
+from .services import create_secondary_campaign
 
 def profile_process():
     print("START PROFILE SOCIAL MEDIA TASKS MANAGER")
@@ -192,6 +192,30 @@ def get_instagram_post_url(url):
 
     return None
 
+def select_random_comment(bot, comments, campaign):
+    comment = random.choice(comments)
+    account_url = comment.get('user_url', '')
+    is_campaign_url = (
+        account_url
+        and campaign
+        and account_url in (campaign.urls or [])
+    )
+
+    if is_campaign_url:
+        return comment
+
+    account_duplicate = ActionModel.objects.filter(
+        bot=bot,
+        target_account_url=account_url
+    ).exists()
+
+    if account_duplicate:
+        select_random_comment(bot, comments, campaign)
+        return None
+
+    return comment
+
+
 def create_actions():
     print("START CAMPAIGN CREATE ACTION SOCIAL MEDIA TASKS MANAGER")
     posts = PostCampaignModel.objects.filter(status="success", working=True)
@@ -207,7 +231,7 @@ def create_actions():
         first_comment_text = comments[0].get('text', '')
 
         for bot in bots:
-            selected_comment = random.choice(comments)
+            selected_comment = select_random_comment(bot, comments, post.campaign)
             user_url = selected_comment.get('user_url', '')
             comment_url = selected_comment.get('link', '')
             comment_text = selected_comment.get('text', '')
@@ -216,7 +240,7 @@ def create_actions():
 
             if action == "like":
                 try:
-                    create_action(
+                    ActionModel.objects.create(
                         user=post.campaign.user,
                         social_media=post.campaign.social_media,
                         url=comment_url,
@@ -230,7 +254,7 @@ def create_actions():
                     print(e)
             elif action == "follow":
                 try:
-                    create_action(
+                    ActionModel.objects.create(
                         user=post.campaign.user,
                         social_media=post.campaign.social_media,
                         url=user_url,
@@ -307,6 +331,20 @@ def create_actions():
                     print(e)
             else:
                 continue
+
+            other_comments = [
+                comment
+                for comment in comments
+                if comment != comments[0] and comment != selected_comment
+            ]
+
+            for comment in other_comments:
+                user_url = comment.get('user_url', '')
+                create_secondary_campaign(
+                    bot_id=bot.id,
+                    target_account_url=user_url,
+                    campaign=post.campaign
+                )
 
         # for index, comment in enumerate(comments):
         #     user_url = comment.get('user_url', '')
