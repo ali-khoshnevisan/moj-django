@@ -92,6 +92,7 @@ action_status_choices = (
     ("pending", "pending"),
     ("failed", "failed"),
     ("success", "success"),
+    ("private", "private account"),
 )
 
 
