@@ -36,7 +36,7 @@ default_max_action_choices = 5
 class ProfileModel(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_profiles')
     social_media = models.CharField(max_length=10, choices=social_media_choices)
-    status = models.CharField(max_length=100, default='added', choices=profile_status_choices)
+    status = models.CharField(max_length=100, default='requested', choices=profile_status_choices)
     username = models.CharField(max_length=100, blank=True, null=True)
     password = models.CharField(max_length=100, blank=True, null=True)
     url = models.URLField(blank=True, null=True)

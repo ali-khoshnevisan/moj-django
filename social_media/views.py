@@ -161,7 +161,7 @@ class ActionFilter(django_filters.FilterSet):
 
     class Meta:
         model = ActionModel
-        fields = ["social_media", "action", "status", "bot"]
+        fields = ["social_media", "action", "status", "bot", "campaign"]
 
 
 class ActionViewSet(viewsets.ModelViewSet):
