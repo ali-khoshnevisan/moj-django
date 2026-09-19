@@ -57,7 +57,7 @@ def create_secondary_campaign(bot_id, target_account_url, campaign):
 
     new_campaign = CampaignSocialMediaModel.objects.create(
         user=campaign.user,
-        campaign_description=f"{campaign.campaign_description} / {target_account_url}",
+        campaign_description=campaign.campaign_description,
         social_media=campaign.social_media,
         urls=[target_account_url],
         actions=campaign.actions,

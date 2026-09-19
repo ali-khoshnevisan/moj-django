@@ -159,9 +159,14 @@ class ActionFilter(django_filters.FilterSet):
         lookup_expr="in"
     )
 
+    campaign_description = django_filters.CharFilter(
+        field_name="campaign__campaign_description",
+        lookup_expr="iexact"
+    )
+
     class Meta:
         model = ActionModel
-        fields = ["social_media", "action", "status", "bot", "campaign"]
+        fields = ["social_media", "action", "status", "bot", "campaign_description"]
 
 
 class ActionViewSet(viewsets.ModelViewSet):
