@@ -43,8 +43,16 @@ class CampaignSerializer(serializers.ModelSerializer):
     def get_bots_objects(self, obj):
         return ProfileSerializer(obj.bots.all(), many=True).data
 
+class CampaignBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CampaignSocialMediaModel
+        fields = [
+            "id",
+            "campaign_description",
+        ]
+
 class ActionSerializer(serializers.ModelSerializer):
-    campaign = CampaignSerializer(read_only=True)
+    campaign = CampaignBriefSerializer(read_only=True)
     bot_info = serializers.SerializerMethodField()
     medias = PostMediaSerializer(many=True, read_only=True)
 
