@@ -10,31 +10,15 @@ class ProfileSerializer(serializers.ModelSerializer):
             'user': {'read_only': True},
         }
 
+# class ProfileLogSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = ProfileLogModel
+#         fields = '__all__'
+
 
 class PostMediaSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostMediaModel
-        fields = "__all__"
-
-
-class ActionSerializer(serializers.ModelSerializer):
-    bot_info = serializers.SerializerMethodField()
-    medias = PostMediaSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = ActionModel
-        fields = "__all__"
-        extra_kwargs = {
-            'user': {'read_only': True},
-        }
-
-    def get_bot_info(self, obj):
-        return ProfileSerializer(obj.bot).data
-
-
-class PostCampaignSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PostCampaignModel
         fields = "__all__"
 
 
@@ -58,3 +42,25 @@ class CampaignSerializer(serializers.ModelSerializer):
 
     def get_bots_objects(self, obj):
         return ProfileSerializer(obj.bots.all(), many=True).data
+
+class ActionSerializer(serializers.ModelSerializer):
+    campaign = CampaignSerializer(read_only=True)
+    bot_info = serializers.SerializerMethodField()
+    medias = PostMediaSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ActionModel
+        fields = "__all__"
+        extra_kwargs = {
+            'user': {'read_only': True},
+        }
+
+    def get_bot_info(self, obj):
+        return ProfileSerializer(obj.bot).data
+
+
+class PostCampaignSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostCampaignModel
+        fields = "__all__"
+
