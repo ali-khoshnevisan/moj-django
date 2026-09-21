@@ -302,8 +302,9 @@ class AddPostMediaView(APIView):
                 media_type=media_type,
             )
 
+        action.status = "requested"
         action.working = True
-        action.save(update_fields=["working"])
+        action.save()
 
         serializer = ActionSerializer(action)
         return Response(serializer.data, status=200)
