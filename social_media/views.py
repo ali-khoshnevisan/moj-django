@@ -268,6 +268,7 @@ class PostSocialMediaView(APIView):
             social_media=request.data.get("social_media"),
             action="post",
             bot_id=bot_id,
+            status=request.data.get("status"),
             text=str(request.data.get("text")),
             working=False
         )
