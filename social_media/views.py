@@ -259,12 +259,6 @@ class PostSocialMediaView(APIView):
     permission_classes = [IsActiveUser]
 
     def post(self, request):
-        media_files = request.FILES.getlist("medias")
-        media_types = request.data.getlist("media_types")
-
-        if len(media_files) != len(media_types):
-            return Response({"error": "media_files count must match media_types count"}, status=400)
-
         bot_id = int(request.data.get("bot"))
         if not ProfileModel.objects.filter(id=bot_id, user=request.user).exists():
             return Response({"bot": "Invalid bot for this user."}, status=400)
@@ -278,19 +272,93 @@ class PostSocialMediaView(APIView):
             working=False
         )
 
-        for file, media_type in zip(media_files, media_types):
-            PostMediaModel.objects.create(
-                action=action,
-                media=file,
-                media_type=media_type
-            )
-        action.working = True
-        action.save()
-
         serializer = ActionSerializer(action)
 
         return Response(serializer.data, status=201)
 
+
+class AddPostMediaView(APIView):
+    permission_classes = [IsActiveUser]
+
+    def put(self, request, action_id):
+        try:
+            action = ActionModel.objects.get(id=action_id, user=request.user)
+        except ActionModel.DoesNotExist:
+            return Response({"error": "post not found"}, status=404)
+
+        if action.working:
+            return Response({"error": "this post has already been finalized"}, status=409)
+
+        media_files = request.FILES.getlist("medias")
+        media_types = request.data.getlist("media_types")
+
+        if len(media_files) != len(media_types):
+            return Response({"error": "medias count must match media_types count"}, status=400)
+
+        for file, media_type in zip(media_files, media_types):
+            PostMediaModel.objects.create(
+                action=action,
+                media=file,
+                media_type=media_type,
+            )
+
+        action.working = True
+        action.save(update_fields=["working"])
+
+        serializer = ActionSerializer(action)
+        return Response(serializer.data, status=200)
+
+class UpdatePostView(APIView):
+    permission_classes = [IsActiveUser]
+
+    def put(self, request, action_id):
+        try:
+            action = ActionModel.objects.get(id=action_id, user=request.user, action="post")
+        except ActionModel.DoesNotExist:
+            return Response({"error": "post not found"}, status=404)
+
+        if action.status != "requested":
+            return Response({
+                "error": "this post can no longer be edited",
+                "detail": f"status is '{action.status}', editing is only allowed while 'requested'",
+            }, status=409)
+
+        if "text" in request.data:
+            action.text = str(request.data.get("text"))
+
+        if "send_date" in request.data:
+            send_date = request.data.get("send_date")
+            if send_date:
+                action.send_date = send_date
+
+        if "social_media" in request.data:
+            action.social_media = request.data.get("social_media")
+
+        media_files = request.FILES.getlist("medias")
+        media_types = request.data.getlist("media_types")
+
+        if media_files:
+            if len(media_files) != len(media_types):
+                return Response({
+                    "error": "medias count must match media_types count"
+                }, status=400)
+
+            existing_media = PostMediaModel.objects.filter(action=action)
+            for media_row in existing_media:
+                media_row.media.delete(save=False)
+            existing_media.delete()
+
+            for file, media_type in zip(media_files, media_types):
+                PostMediaModel.objects.create(
+                    action=action,
+                    media=file,
+                    media_type=media_type,
+                )
+
+        action.save()
+
+        serializer = ActionSerializer(action)
+        return Response(serializer.data, status=200)
 
 PROXY_HOST = "proxy.ghostvps.com"
 PROXY_PASSWORD = "92964b4ea532a8e1"

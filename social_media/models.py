@@ -93,6 +93,7 @@ action_status_choices = (
     ("failed", "failed"),
     ("success", "success"),
     ("private", "private account"),
+    ("uploading", "uploading"),
 )
 
 
