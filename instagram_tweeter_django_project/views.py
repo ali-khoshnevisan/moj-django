@@ -321,9 +321,8 @@ class TaskUpdateManager(APIView):
                 profile.task_ids = []
                 profile.save()
             else:
-                print('result', result)
                 profile.posts = list(set(result["last_12_posts"] + profile.posts))
-                if result["posts_count"] > 0 and len(result["last_12_posts"]) == 0:
+                if result["posts"] > 0 and len(result["last_12_posts"]) == 0:
                     profile.status = 'private'
                 else: profile.status = status
                 profile.save()
