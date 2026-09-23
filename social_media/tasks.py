@@ -197,27 +197,48 @@ def get_instagram_post_url(url):
     return None
 
 def select_random_comment(bot, comments, campaign):
-    comment = random.choice(comments)
-    account_url = comment.get('user_url', '')
-    is_campaign_url = (
-        account_url
-        and campaign
-        and account_url in (campaign.urls or [])
+    campaign_urls = set(campaign.urls or []) if campaign else set()
+
+    already_actioned = set(
+        ActionModel.objects.filter(bot=bot)
+        .exclude(target_account_url__isnull=True)
+        .exclude(target_account_url="")
+        .values_list("target_account_url", flat=True)
     )
 
-    if is_campaign_url:
-        return comment
+    eligible = []
+    for comment in comments:
+        account_url = comment.get("user_url", "")
+        if account_url and campaign_urls and account_url in campaign_urls:
+            eligible.append(comment)
+        elif account_url not in already_actioned:
+            eligible.append(comment)
 
-    account_duplicate = ActionModel.objects.filter(
-        bot=bot,
-        target_account_url=account_url
-    ).exists()
-
-    if account_duplicate:
-        select_random_comment(bot, comments, campaign)
+    if not eligible:
         return None
 
-    return comment
+    return random.choice(eligible)
+    # comment = random.choice(comments)
+    # account_url = comment.get('user_url', '')
+    # is_campaign_url = (
+    #     account_url
+    #     and campaign
+    #     and account_url in (campaign.urls or [])
+    # )
+    #
+    # if is_campaign_url:
+    #     return comment
+    #
+    # account_duplicate = ActionModel.objects.filter(
+    #     bot=bot,
+    #     target_account_url=account_url
+    # ).exists()
+    #
+    # if account_duplicate:
+    #     select_random_comment(bot, comments, campaign)
+    #     return None
+    #
+    # return comment
 
 
 def create_actions():
@@ -236,6 +257,9 @@ def create_actions():
 
         for bot in bots:
             selected_comment = select_random_comment(bot, comments, post.campaign)
+            if selected_comment is None:
+                continue
+
             user_url = selected_comment.get('user_url', '')
             comment_url = selected_comment.get('link', '')
             comment_text = selected_comment.get('text', '')
