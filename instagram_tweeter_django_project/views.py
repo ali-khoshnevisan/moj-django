@@ -308,6 +308,17 @@ class TaskUpdateManager(APIView):
                 profile.task_id = None
                 profile.save()
                 url = result['avatar']
+                if url:
+                    try:
+                        response = requests.get(url, timeout=15)
+                        response.raise_for_status()
+                        profile.image.save(
+                            f"profile_{profile.id}.png",
+                            ContentFile(response.content),
+                            save=True
+                        )
+                    except requests.RequestException as e:
+                        print(e)
                 response = requests.get(url)
                 profile.image.save(
                     f"profile_{profile.id}.png",

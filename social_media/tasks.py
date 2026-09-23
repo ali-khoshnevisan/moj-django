@@ -468,7 +468,7 @@ def register_profile_with_service(profile_id):
         "username": profile.username,
         "password": profile.password,
         "totp_secret": profile.totp,
-        "proxy": f"vahid2026:vihanbaba2026@127.0.0.1:${profile.proxy["port"]}",
+        "proxy": f"vahid2026:vihanbaba2026@127.0.0.1:{profile.proxy["port"]}",
         "sleep_from": profile.sleep_from,
         "sleep_to": profile.sleep_to,
     }
