@@ -8,6 +8,10 @@ from ai.models import AIModel
 from datetime import timedelta, datetime
 from urllib.parse import urlparse
 from .services import create_secondary_campaign
+from celery import shared_task
+
+REGISTER_PROFILE_URL = "http://91.107.232.169:7700/login"
+REGISTER_PROFILE_TIMEOUT = 300
 
 def profile_process():
     print("START PROFILE SOCIAL MEDIA TASKS MANAGER")
@@ -451,3 +455,41 @@ def create_actions():
         post.save()
 
     print("FINISH CAMPAIGN CREATE ACTION SOCIAL MEDIA TASKS MANAGER")
+
+
+@shared_task(name="social_media.register_profile_with_service")
+def register_profile_with_service(profile_id):
+    try:
+        profile = ProfileModel.objects.get(pk=profile_id)
+    except ProfileModel.DoesNotExist:
+        return {"ok": False, "reason": "profile no longer exists"}
+
+    payload = {
+        "username": profile.username,
+        "password": profile.password,
+        "totp_secret": profile.totp,
+        "proxy": f"vahid2026:vihanbaba2026@127.0.0.1:${profile.proxy.port}",
+        "sleep_from": profile.sleep_from,
+        "sleep_to": profile.sleep_to,
+    }
+
+    try:
+        response = requests.post(
+            REGISTER_PROFILE_URL,
+            json=payload,
+            timeout=REGISTER_PROFILE_TIMEOUT,
+        )
+    except requests.RequestException as e:
+        ProfileModel.objects.filter(pk=profile_id).update(
+            status="profile-is-not-login"
+        )
+        return {"ok": False, "reason": f"request failed: {e}"}
+
+    if 200 <= response.status_code < 300:
+        ProfileModel.objects.filter(pk=profile_id).update(status="requested")
+        return {"ok": True, "status_code": response.status_code}
+
+    ProfileModel.objects.filter(pk=profile_id).update(
+        status="profile-is-not-login"
+    )
+    return {"ok": False, "status_code": response.status_code, "body": response.text[:500]}

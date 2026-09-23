@@ -36,9 +36,10 @@ default_max_action_choices = 5
 class ProfileModel(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_profiles')
     social_media = models.CharField(max_length=10, choices=social_media_choices)
-    status = models.CharField(max_length=100, default='requested', choices=profile_status_choices)
+    status = models.CharField(max_length=100, default='checking-profile', choices=profile_status_choices)
     username = models.CharField(max_length=100, blank=True, null=True)
     password = models.CharField(max_length=100, blank=True, null=True)
+    totp = models.CharField(max_length=32, blank=True, null=True)
     url = models.URLField(blank=True, null=True)
     followers = models.CharField(max_length=20, blank=True, null=True)
     followings = models.CharField(max_length=20, blank=True, null=True)
@@ -130,37 +131,37 @@ class ActionModel(models.Model):
             # ),
         # ]
 
-    def clean(self):
-        allowed_actions = action_choices.get(self.social_media, [])
-        if self.action not in allowed_actions:
-            raise ValidationError({
-                'action': f"{self.action} is not allowed for {self.social_media}"
-            })
-
-        # bot.max_actions_per_hour is nullable — without this guard, any
-        # bot that never had it configured crashes every single save() here.
-        if not self.bot.max_actions_per_hour:
-            return
-
-        limit = self.bot.max_actions_per_hour.get(self.action)
-        if not limit:
-            return
-        interval = timedelta(days=1) / limit
-
-        qs = self.__class__.objects.filter(
-            bot=self.bot,
-            action=self.action,
-            send_date__gte=timezone.now() - timedelta(days=1)
-        ).order_by('-send_date')
-
-        if qs.count() < limit:
-            return
-
-        last_action = qs[limit - 1]
-        next_allowed_time = last_action.send_date + timedelta(days=1)
-
-        if self.send_date < next_allowed_time:
-            self.send_date = next_allowed_time
+    # def clean(self):
+    #     allowed_actions = action_choices.get(self.social_media, [])
+    #     if self.action not in allowed_actions:
+    #         raise ValidationError({
+    #             'action': f"{self.action} is not allowed for {self.social_media}"
+    #         })
+    #
+    #     # bot.max_actions_per_hour is nullable — without this guard, any
+    #     # bot that never had it configured crashes every single save() here.
+    #     if not self.bot.max_actions_per_hour:
+    #         return
+    #
+    #     limit = self.bot.max_actions_per_hour.get(self.action)
+    #     if not limit:
+    #         return
+    #     interval = timedelta(days=1) / limit
+    #
+    #     qs = self.__class__.objects.filter(
+    #         bot=self.bot,
+    #         action=self.action,
+    #         send_date__gte=timezone.now() - timedelta(days=1)
+    #     ).order_by('-send_date')
+    #
+    #     if qs.count() < limit:
+    #         return
+    #
+    #     last_action = qs[limit - 1]
+    #     next_allowed_time = last_action.send_date + timedelta(days=1)
+    #
+    #     if self.send_date < next_allowed_time:
+    #         self.send_date = next_allowed_time
 
     def save(self, *args, **kwargs):
         # self.full_clean()

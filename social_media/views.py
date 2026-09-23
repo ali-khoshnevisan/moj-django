@@ -25,6 +25,7 @@ from instagrapi.exceptions import (
 from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostMediaModel
 from .serializers import ProfileSerializer, ActionSerializer, CampaignSerializer
 from accounts.permissions import IsActiveUser
+from .tasks import register_profile_with_service
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -55,7 +56,8 @@ class ProfileViewSet(viewsets.ModelViewSet):
         return ProfileModel.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        profile = serializer.save(user=self.request.user)
+        register_profile_with_service.delay(profile.id)
 
     @action(detail=False, methods=["get"], url_path="max_id")
     def max_id(self, request):
@@ -67,8 +69,8 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="allocate-port")
     def allocate_port(self, request):
-        MIN_PORT = 10000
-        MAX_PORT = 30000
+        MIN_PORT = 10801
+        MAX_PORT = 10810
 
         last_profile = ProfileModel.objects.exclude(proxy__isnull=True).order_by('-id').first()
 
