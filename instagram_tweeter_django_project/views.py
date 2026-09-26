@@ -308,9 +308,13 @@ class TaskUpdateManager(APIView):
                 profile.task_id = None
                 profile.save()
                 url = result['avatar']
+                print('result', result)
+                print('url', url)
                 if url:
                     try:
                         response = requests.get(url, timeout=15)
+
+                        print('response', response)
                         response.raise_for_status()
                         profile.image.save(
                             f"profile_{profile.id}.png",
@@ -319,12 +323,12 @@ class TaskUpdateManager(APIView):
                         )
                     except requests.RequestException as e:
                         print(e)
-                response = requests.get(url)
-                profile.image.save(
-                    f"profile_{profile.id}.png",
-                    ContentFile(response.content),
-                    save=True
-                )
+                # response = requests.get(url)
+                # profile.image.save(
+                #     f"profile_{profile.id}.png",
+                #     ContentFile(response.content),
+                #     save=True
+                # )
         elif isinstance(profile, CampaignSocialMediaModel):
             if status == settings.PROFILE_NOT_LOGIN_STATUS:
                 self.disable_profile(profile.bots.first())
