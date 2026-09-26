@@ -57,7 +57,8 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         profile = serializer.save(user=self.request.user)
-        register_profile_with_service.delay(profile.id)
+        if profile.totp:
+            register_profile_with_service.delay(profile.id)
 
     @action(detail=False, methods=["get"], url_path="max_id")
     def max_id(self, request):
