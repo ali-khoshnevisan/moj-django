@@ -23,8 +23,11 @@ profile_status_choices = (
     ("checking-profile", "checking-profile"),
     ("profile-is-not-login", "profile-is-not-login"),
     ("grab-profile", "grab-profile"),
+    ("get-profile", "get-profile"),
     ('pending', 'pending'),
     ('added', 'added'),
+    ('2fa', '2fa'),
+    ('check-2fa-code', 'check-2fa-code'),
 )
 
 default_max_action_choices = 5

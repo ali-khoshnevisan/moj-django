@@ -25,7 +25,7 @@ from instagrapi.exceptions import (
 from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostMediaModel
 from .serializers import ProfileSerializer, ActionSerializer, CampaignSerializer
 from accounts.permissions import IsActiveUser
-from .tasks import register_profile_with_service
+from .tasks import register_profile_with_service, submit_code_to_service
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -43,6 +43,35 @@ class ProfileFilter(django_filters.FilterSet):
 #     permission_classes = [AllowCoreServerIP]
 #     queryset = ProfileLogModel.objects.all()
 #     serializer_class = ProfileLogSerializer
+class SubmitProfileCodeView(APIView):
+    permission_classes = [IsActiveUser]
+
+    def post(self, request, id):
+        try:
+            profile = ProfileModel.objects.get(pk=id, user=request.user)
+        except ProfileModel.DoesNotExist:
+            return Response({"error": "profile not found"}, status=404)
+
+        code = request.data.get("code")
+        if not code:
+            return Response({"error": "code is required"}, status=400)
+
+        profile.status = 'check-2fa-code'
+        profile.save(update_fields=["status"])
+        submit_code_to_service.delay(profile.id, code)
+
+        return Response({"status": "queued"}, status=202)
+
+class RetryLoginProfileView(APIView):
+    permission_classes = [IsActiveUser]
+
+    def post(self, request, id):
+        try:
+            profile = ProfileModel.objects.get(pk=id, user=request.user)
+        except ProfileModel.DoesNotExist:
+            return Response({"error": "profile not found"}, status=404)
+
+        register_profile_with_service.delay(profile.id)
 
 class ProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsActiveUser]
@@ -57,8 +86,11 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         profile = serializer.save(user=self.request.user)
-        if profile.totp:
-            register_profile_with_service.delay(profile.id)
+        register_profile_with_service.delay(profile.id)
+
+    def perform_update(self, serializer):
+        profile = serializer.save(user=self.request.user)
+        register_profile_with_service.delay(profile.id)
 
     @action(detail=False, methods=["get"], url_path="max_id")
     def max_id(self, request):
@@ -271,7 +303,6 @@ class PostSocialMediaView(APIView):
             social_media=request.data.get("social_media"),
             action="post",
             bot_id=bot_id,
-            status=request.data.get("status"),
             text=str(request.data.get("text")),
             working=False
         )
@@ -293,6 +324,9 @@ class AddPostMediaView(APIView):
         if action.working:
             return Response({"error": "this post has already been finalized"}, status=409)
 
+        action.status = "uploading"
+        action.save(update_fields=["status"])
+
         media_files = request.FILES.getlist("medias")
         media_types = request.data.getlist("media_types")
 
@@ -313,57 +347,6 @@ class AddPostMediaView(APIView):
         serializer = ActionSerializer(action)
         return Response(serializer.data, status=200)
 
-class UpdatePostView(APIView):
-    permission_classes = [IsActiveUser]
-
-    def put(self, request, action_id):
-        try:
-            action = ActionModel.objects.get(id=action_id, user=request.user, action="post")
-        except ActionModel.DoesNotExist:
-            return Response({"error": "post not found"}, status=404)
-
-        if action.status != "requested":
-            return Response({
-                "error": "this post can no longer be edited",
-                "detail": f"status is '{action.status}', editing is only allowed while 'requested'",
-            }, status=409)
-
-        if "text" in request.data:
-            action.text = str(request.data.get("text"))
-
-        if "send_date" in request.data:
-            send_date = request.data.get("send_date")
-            if send_date:
-                action.send_date = send_date
-
-        if "social_media" in request.data:
-            action.social_media = request.data.get("social_media")
-
-        media_files = request.FILES.getlist("medias")
-        media_types = request.data.getlist("media_types")
-
-        if media_files:
-            if len(media_files) != len(media_types):
-                return Response({
-                    "error": "medias count must match media_types count"
-                }, status=400)
-
-            existing_media = PostMediaModel.objects.filter(action=action)
-            for media_row in existing_media:
-                media_row.media.delete(save=False)
-            existing_media.delete()
-
-            for file, media_type in zip(media_files, media_types):
-                PostMediaModel.objects.create(
-                    action=action,
-                    media=file,
-                    media_type=media_type,
-                )
-
-        action.save()
-
-        serializer = ActionSerializer(action)
-        return Response(serializer.data, status=200)
 
 PROXY_HOST = "proxy.ghostvps.com"
 PROXY_PASSWORD = "92964b4ea532a8e1"

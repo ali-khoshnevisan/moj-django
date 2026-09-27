@@ -11,6 +11,7 @@ from .services import create_secondary_campaign
 from celery import shared_task
 
 REGISTER_PROFILE_URL = "http://91.107.232.169:7700/login"
+SUBMIT_CODE_URL = "http://91.107.232.169:7700/submit-code"
 REGISTER_PROFILE_TIMEOUT = 300
 
 def profile_process():
@@ -510,10 +511,72 @@ def register_profile_with_service(profile_id):
         return {"ok": False, "reason": f"request failed: {e}"}
 
     if 200 <= response.status_code < 300:
-        ProfileModel.objects.filter(pk=profile_id).update(status="requested")
+        data = response.json()
+
+        if data.get("needs_2fa_code") or data.get('needs_email_code') is True:
+            ProfileModel.objects.filter(pk=profile_id).update(
+                status="2fa"
+            )
+            return {
+                "ok": True,
+                "status_code": response.status_code,
+                "needs_2fa_code": True,
+            }
+
+        ProfileModel.objects.filter(pk=profile_id).update(
+            status="requested"
+        )
         return {"ok": True, "status_code": response.status_code}
 
     ProfileModel.objects.filter(pk=profile_id).update(
         status="profile-is-not-login"
     )
     return {"ok": False, "status_code": response.status_code, "body": response.text[:500]}
+
+
+@shared_task(name="social_media.submit_code_to_service")
+def submit_code_to_service(profile_id, code):
+    try:
+        profile = ProfileModel.objects.get(pk=profile_id)
+    except ProfileModel.DoesNotExist:
+        return {"ok": False, "reason": "profile no longer exists"}
+
+    payload = {
+        "username": profile.username,
+        "code": code,
+    }
+
+    try:
+        response = requests.post(
+            SUBMIT_CODE_URL,
+            json=payload,
+            timeout=REGISTER_PROFILE_TIMEOUT,
+        )
+    except requests.RequestException as e:
+        ProfileModel.objects.filter(pk=profile_id).update(
+            status="profile-is-not-login"
+        )
+        return {"ok": False, "reason": f"request failed: {e}"}
+
+    if 200 <= response.status_code < 300:
+        data = response.json()
+
+        if data.get("success") is True:
+            ProfileModel.objects.filter(pk=profile_id).update(
+                status="requested"
+            )
+            return {
+                "ok": True,
+                "status_code": response.status_code,
+            }
+        ProfileModel.objects.filter(pk=profile_id).update(status="profile-is-not-login")
+        return {"ok": True, "status_code": response.status_code}
+
+    ProfileModel.objects.filter(pk=profile_id).update(
+        status="profile-is-not-login"
+    )
+    return {
+        "ok": False,
+        "status_code": response.status_code,
+        "body": response.text[:500]
+    }
