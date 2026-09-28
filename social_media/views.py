@@ -14,6 +14,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db import transaction
 # from instagram_tweeter_django_project.views  import AllowCoreServerIP
 from rest_framework.exceptions import PermissionDenied
 from instagrapi import Client
@@ -86,11 +87,32 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         profile = serializer.save(user=self.request.user)
-        register_profile_with_service.delay(profile.id)
+        # register_profile_with_service.delay(profile.id)
+        transaction.on_commit(
+            lambda: register_profile_with_service.delay(profile.id)
+        )
 
-    def perform_update(self, serializer):
-        profile = serializer.save(user=self.request.user)
-        register_profile_with_service.delay(profile.id)
+    @action(detail=True, methods=["patch"], url_path="retry")
+    def retry(self, request):
+        profile = self.get_object()
+
+        serializer = self.get_serializer(
+            profile,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+
+        profile = serializer.save(user=request.user)
+
+        # register_profile_with_service.delay(profile.id)
+        transaction.on_commit(
+            lambda: register_profile_with_service.delay(profile.id)
+        )
+        return Response(
+            self.get_serializer(profile).data,
+            status=status.HTTP_200_OK
+        )
 
     @action(detail=False, methods=["get"], url_path="max_id")
     def max_id(self, request):
