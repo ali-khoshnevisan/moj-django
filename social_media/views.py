@@ -93,7 +93,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["patch"], url_path="retry")
-    def retry(self, request):
+    def retry(self, request, pk=None):
         profile = self.get_object()
 
         serializer = self.get_serializer(
