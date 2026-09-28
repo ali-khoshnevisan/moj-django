@@ -10,6 +10,34 @@ class ProfileSerializer(serializers.ModelSerializer):
             'user': {'read_only': True},
         }
 
+        def validate(self, attrs):
+            social_media = attrs.get(
+                'social_media',
+                self.instance.social_media if self.instance else None
+            )
+
+            username = attrs.get(
+                'username',
+                self.instance.username if self.instance else None
+            )
+
+            exists = ProfileModel.objects.filter(
+                social_media=social_media,
+                username=username
+            )
+
+            if self.instance:
+                exists = exists.exclude(pk=self.instance.pk)
+
+            if exists.exists():
+                raise serializers.ValidationError({
+                    'username': (
+                        f'This account is already registered for '
+                        f'{social_media}.'
+                    )
+                })
+
+            return attrs
 # class ProfileLogSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = ProfileLogModel
