@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import AccountModel, PostModel, WebSinglePostModel, TelegramModel, TelegramSendPost
+from .models import AccountModel, PostModel, WebSinglePostModel, TelegramModel, TelegramSendPost, TelegramPostMedia
 
 
 class AccountSerializer(serializers.ModelSerializer):
@@ -35,9 +35,14 @@ class TelegramBotSerializer(serializers.ModelSerializer):
             'user': {'read_only': True},
         }
 
+class TelegramPostMediaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TelegramPostMedia
+        fields = ['id', 'media', 'media_type']
 
 class TelegramSendPostSerializer(serializers.ModelSerializer):
     bot_info = serializers.SerializerMethodField()
+    medias = TelegramPostMediaSerializer(many=True, read_only=True)
 
     class Meta:
         model = TelegramSendPost
