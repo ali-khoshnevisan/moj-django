@@ -106,6 +106,7 @@ class TaskUpdateManager(APIView):
             return
         ProfileModel.objects.filter(pk=profile.pk).update(
             status=settings.PROFILE_NOT_LOGIN_STATUS,
+            requires_verification=True
         )
 
     def model_determiner(self, worker):
@@ -291,6 +292,7 @@ class TaskUpdateManager(APIView):
         if isinstance(profile, ProfileModel):
             if status == settings.PROFILE_NOT_LOGIN_STATUS:
                 profile.status = settings.PROFILE_NOT_LOGIN_STATUS
+                profile.requires_verification = True
                 profile.task_id = None
                 profile.last_update = timezone.now()
                 profile.save()
@@ -304,7 +306,7 @@ class TaskUpdateManager(APIView):
                 profile.description = result['bio']
                 profile.posts_count = result['posts']
                 profile.profile_image = result['avatar']
-                profile.status = 'added'
+                profile.status = 'ready'
                 profile.task_id = None
                 profile.save()
                 url = result['avatar']

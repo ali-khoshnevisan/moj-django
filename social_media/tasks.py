@@ -16,7 +16,7 @@ REGISTER_PROFILE_TIMEOUT = 300
 
 def profile_process():
     print("START PROFILE SOCIAL MEDIA TASKS MANAGER")
-    requested_profiles = ProfileModel.objects.filter(status='requested')
+    requested_profiles = ProfileModel.objects.filter(status='fetching_profile')
     # for profile in requested_profiles:
     #     try:
     #         response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
@@ -39,7 +39,7 @@ def profile_process():
                                                     "username": profile.username}}).json()
             task_id = response['task_id']
             profile.task_id = task_id
-            profile.status = 'pending'
+            # profile.status = 'fetching_profile'
             profile.save()
 
         except Exception as e:
@@ -219,27 +219,6 @@ def select_random_comment(bot, comments, campaign):
         return None
 
     return random.choice(eligible)
-    # comment = random.choice(comments)
-    # account_url = comment.get('user_url', '')
-    # is_campaign_url = (
-    #     account_url
-    #     and campaign
-    #     and account_url in (campaign.urls or [])
-    # )
-    #
-    # if is_campaign_url:
-    #     return comment
-    #
-    # account_duplicate = ActionModel.objects.filter(
-    #     bot=bot,
-    #     target_account_url=account_url
-    # ).exists()
-    #
-    # if account_duplicate:
-    #     select_random_comment(bot, comments, campaign)
-    #     return None
-    #
-    # return comment
 
 
 def create_actions():
@@ -375,107 +354,6 @@ def create_actions():
                     campaign=post.campaign
                 )
 
-        # for index, comment in enumerate(comments):
-        #     user_url = comment.get('user_url', '')
-        #     comment_url = comment.get('link', '')
-        #     comment_text = comment.get('text', '')
-        #     post_url = get_instagram_post_url(comment_url)
-        #     action = random.choice(actions)
-        #     for bot in bots:
-        #         if action == "like":
-        #             try:
-        #                 ActionModel.objects.create(
-        #                     user=post.campaign.user,
-        #                     social_media=post.campaign.social_media,
-        #                     url=comment_url,
-        #                     target_account_url=user_url,
-        #                     target_post=post_url,
-        #                     bot=bot,
-        #                     action=action,
-        #                     campaign=post.campaign
-        #                 )
-        #             except Exception as e:
-        #                 print(e)
-        #         elif action == "follow":
-        #             try:
-        #                 ActionModel.objects.create(
-        #                     user=post.campaign.user,
-        #                     social_media=post.campaign.social_media,
-        #                     url=user_url,
-        #                     target_account_url=user_url,
-        #                     target_post=post_url,
-        #                     bot=bot,
-        #                     action=action,
-        #                     campaign=post.campaign
-        #                 )
-        #             except Exception as e:
-        #                 print(e)
-        #         elif action == "comment":
-        #             try:
-        #                 caption_context = ""
-        #                 if index > 0 and first_comment_text:
-        #                     caption_context = f"""این کامنت برای این پست گذاشته شده و باید بهش یک جواب مرتبط بدی.
-        #                     کپشن پست:
-        #                     {first_comment_text}
-        #                     """
-        #                 if post.campaign.comment_prompt:
-        #                     prompt = f"""
-        #                     {post.campaign.comment_prompt}
-        #                     {caption_context}
-        #                     فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
-        #                     کامنت:
-        #                     {comment_text}
-        #                     """
-        #                 else:
-        #                     prompt = f"""
-        #                     یک جواب برای این کامنت تولید کن
-        #                     {caption_context}
-        #                     فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
-        #                     کامنت:
-        #                     {comment_text}
-        #                     """
-        #                 AIModel.objects.create(
-        #                     ai_type="chatgpt",
-        #                     request=prompt,
-        #                     comment_details={
-        #                         "user": post.campaign.user_id,
-        #                         "social_media": post.campaign.social_media,
-        #                         "url": comment_url,
-        #                         "target_account_url": user_url,
-        #                         "target_post": post_url,
-        #                         "bot": bot.id,
-        #                         "action": action,
-        #                         "campaign": post.campaign.id
-        #                     })
-        #             except Exception as e:
-        #                 print(e)
-        #
-        #         elif action == "direct":
-        #             try:
-        #                 if post.campaign.direct_prompt:
-        #                     prompt = f"""
-        #                     {post.campaign.direct_prompt}
-        #                     فقط جوابو بگو چون میخوام مستقیم کپی ش کنم و بفرستم برای طرف
-        #                     """
-        #
-        #                     AIModel.objects.create(
-        #                         ai_type="chatgpt",
-        #                         request=prompt,
-        #                         comment_details={
-        #                             "user": post.campaign.user_id,
-        #                             "social_media": post.campaign.social_media,
-        #                             "url": user_url,
-        #                             "target_account_url": user_url,
-        #                             "target_post": post_url,
-        #                             "bot": bot.id,
-        #                             "action": action,
-        #                             "campaign": post.campaign.id
-        #                         })
-        #             except Exception as e:
-        #                 print(e)
-        #         else:
-        #             continue
-
         post.status = "created"
         post.save()
 
@@ -515,7 +393,8 @@ def register_profile_with_service(profile_id):
 
         if data.get("needs_2fa_code") or data.get('needs_email_code') is True:
             ProfileModel.objects.filter(pk=profile_id).update(
-                status="2fa"
+                status="2fa_required",
+                requires_2fa=True
             )
             return {
                 "ok": True,
@@ -524,12 +403,14 @@ def register_profile_with_service(profile_id):
             }
 
         ProfileModel.objects.filter(pk=profile_id).update(
-            status="requested"
+            status="fetching_profile"
         )
         return {"ok": True, "status_code": response.status_code}
 
+
     ProfileModel.objects.filter(pk=profile_id).update(
-        status="profile-is-not-login"
+        status="profile-is-not-login",
+        credentials_valid=True
     )
     return {"ok": False, "status_code": response.status_code, "body": response.text[:500]}
 
@@ -554,7 +435,8 @@ def submit_code_to_service(profile_id, code):
         )
     except requests.RequestException as e:
         ProfileModel.objects.filter(pk=profile_id).update(
-            status="profile-is-not-login"
+            status="profile-is-not-login",
+            credentials_valid=True
         )
         return {"ok": False, "reason": f"request failed: {e}"}
 
@@ -563,17 +445,18 @@ def submit_code_to_service(profile_id, code):
 
         if data.get("success") is True:
             ProfileModel.objects.filter(pk=profile_id).update(
-                status="requested"
+                status="fetching_profile"
             )
             return {
                 "ok": True,
                 "status_code": response.status_code,
             }
-        ProfileModel.objects.filter(pk=profile_id).update(status="profile-is-not-login")
+        ProfileModel.objects.filter(pk=profile_id).update(status="profile-is-not-login", credentials_valid=True)
         return {"ok": True, "status_code": response.status_code}
 
     ProfileModel.objects.filter(pk=profile_id).update(
-        status="profile-is-not-login"
+        status="profile-is-not-login",
+        credentials_valid=True
     )
     return {
         "ok": False,

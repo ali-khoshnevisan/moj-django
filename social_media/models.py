@@ -20,14 +20,14 @@ social_media_choices = (
 
 profile_status_choices = (
     ('requested', 'requested'),
-    ("checking-profile", "checking-profile"),
     ("profile-is-not-login", "profile-is-not-login"),
-    ("grab-profile", "grab-profile"),
-    ("get-profile", "get-profile"),
     ('pending', 'pending'),
     ('added', 'added'),
-    ('2fa', '2fa'),
     ('check-2fa-code', 'check-2fa-code'),
+    ('logging_in', 'Logging In'),
+    ('2fa_required', '2FA Required'),
+    ('fetching_profile', 'Fetching Profile'),
+    ('ready', 'Ready'),
 )
 
 default_max_action_choices = 5
@@ -39,7 +39,7 @@ default_max_action_choices = 5
 class ProfileModel(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_profiles')
     social_media = models.CharField(max_length=10, choices=social_media_choices)
-    status = models.CharField(max_length=100, default='checking-profile', choices=profile_status_choices)
+    status = models.CharField(max_length=100, default='logging_in', choices=profile_status_choices)
     username = models.CharField(max_length=100, blank=True, null=True)
     password = models.CharField(max_length=100, blank=True, null=True)
     totp = models.CharField(max_length=32, blank=True, null=True)
@@ -56,6 +56,9 @@ class ProfileModel(models.Model):
     sleep_to = models.IntegerField(default=4)
     task_id = models.UUIDField(blank=True, null=True)
     proxy = models.JSONField(blank=True, null=True)
+    requires_2fa = models.BooleanField(default=False)
+    requires_verification = models.BooleanField(default=False)
+    credentials_valid = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['-last_update']
