@@ -115,6 +115,7 @@ class ActionModel(models.Model):
     status = models.CharField(max_length=10, default="requested", choices=action_status_choices)
     bot = models.ForeignKey(ProfileModel, on_delete=models.CASCADE, blank=False, null=True)
     text = models.TextField(blank=True, null=True)
+    error_message = models.TextField(blank=True, null=True)
     send_date = models.DateTimeField(default=timezone.now)
     result = models.JSONField(blank=True, null=True)
     task_id = models.UUIDField(blank=True, null=True)
