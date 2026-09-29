@@ -104,6 +104,7 @@ def action_process():
                                      json={"worker_type": f"{task.social_media}-{task.action}",
                                            "data": {"text": task.text,
                                                     "url": task.url,
+                                                    "crop": task.crop,
                                                     "medias": medias,
                                                     "username": task.bot.username}}).json()
             task_id = response['task_id']
