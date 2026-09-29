@@ -84,8 +84,8 @@ def action_process():
             # if task.bot.next_eligible_at > timezone.now():
             #     continue
 
-            if task.bot.sleep_from < datetime.now().hour < task.bot.sleep_to:
-                continue
+            # if task.bot.sleep_from < datetime.now().hour < task.bot.sleep_to:
+            #     continue
 
             # if flag > 5:
             #     update_bot_next_eligible(task.bot)
