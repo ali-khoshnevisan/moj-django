@@ -86,6 +86,12 @@ class PostModel(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['account', 'url'],
+                name='unique_account_post_url'
+            )
+        ]
 
     def save(self, *args, **kwargs):
         if self.account.ai_prompt and not self.ai_response:
