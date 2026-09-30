@@ -25,6 +25,7 @@ def _crawler(platform, pstatus, timer):
                                            last_update__lte=timezone.now() - timer)
     for account in accounts:
         try:
+            print('url crawler', account.url)
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                      json={"worker_type": f"{account.platform}-crawler",
                                            "data": {"url": account.url, "config": account.config}}).json()
