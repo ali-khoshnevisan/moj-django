@@ -102,6 +102,7 @@ class TaskUpdateManager(APIView):
         return Response({"message": "ok"})
 
     def disable_profile(self, profile):
+        print('profile', profile)
         if not profile:
             return
         ProfileModel.objects.filter(pk=profile.pk).update(
@@ -330,7 +331,6 @@ class TaskUpdateManager(APIView):
                 #     save=True
                 # )
         elif isinstance(profile, CampaignSocialMediaModel):
-            print('status campaign profile', status)
             if status == settings.PROFILE_NOT_LOGIN_STATUS:
                 self.disable_profile(profile.bots.first())
                 profile.status = 'failed'
