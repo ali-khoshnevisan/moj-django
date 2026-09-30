@@ -16,7 +16,7 @@ REGISTER_PROFILE_TIMEOUT = 300
 
 def profile_process():
     print("START PROFILE SOCIAL MEDIA TASKS MANAGER")
-    requested_profiles = ProfileModel.objects.filter(status='fetching_profile')
+    requested_profiles = ProfileModel.objects.filter(status='requested')
     # for profile in requested_profiles:
     #     try:
     #         response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
@@ -39,7 +39,7 @@ def profile_process():
                                                     "username": profile.username}}).json()
             task_id = response['task_id']
             profile.task_id = task_id
-            # profile.status = 'fetching_profile'
+            profile.status = 'fetching_profile'
             profile.save()
 
         except Exception as e:
@@ -368,6 +368,14 @@ def register_profile_with_service(profile_id):
     except ProfileModel.DoesNotExist:
         return {"ok": False, "reason": "profile no longer exists"}
 
+    # try:
+    #     delete_response = requests.post(
+    #         f"http://91.107.232.169:7700/profiles/{profile.username}",
+    #         timeout=REGISTER_PROFILE_TIMEOUT,
+    #     )
+    # except requests.RequestException as e:
+    #     print(e)
+
     payload = {
         "username": profile.username,
         "password": profile.password,
@@ -405,7 +413,7 @@ def register_profile_with_service(profile_id):
             }
 
         ProfileModel.objects.filter(pk=profile_id).update(
-            status="fetching_profile",
+            status="requested",
             warning_flag=False
         )
         return {"ok": True, "status_code": response.status_code}
@@ -448,7 +456,7 @@ def submit_code_to_service(profile_id, code):
 
         if data.get("success") is True:
             ProfileModel.objects.filter(pk=profile_id).update(
-                status="fetching_profile",
+                status="requested",
                 warning_flag=False
             )
             return {
