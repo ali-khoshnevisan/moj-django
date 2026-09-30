@@ -88,13 +88,13 @@ class TaskUpdateManager(APIView):
         if not obj:
             return Response({"message": "This task id is not found"})
 
-        if status == settings.DISABLE_PROFILE_STATUS and not isinstance(
-            obj, ActionModel
-        ):
-            return Response(
-                {"message": "disable_profile is not applicable to this worker type"},
-                status=400,
-            )
+        # if status == settings.DISABLE_PROFILE_STATUS and not isinstance(
+        #     obj, ActionModel
+        # ):
+        #     return Response(
+        #         {"message": "disable_profile is not applicable to this worker type"},
+        #         status=400,
+        #     )
 
         method = self.find_method(worker_type)
         if not method:
