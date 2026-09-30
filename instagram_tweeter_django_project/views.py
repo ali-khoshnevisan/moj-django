@@ -333,7 +333,7 @@ class TaskUpdateManager(APIView):
                 #     save=True
                 # )
         elif isinstance(profile, CampaignSocialMediaModel):
-            if status == settings.PROFILE_NOT_LOGIN_STATUS:
+            if status == settings.PROFILE_NOT_LOGIN_STATUS or status == settings.DISABLE_PROFILE_STATUS:
                 self.disable_profile(profile.bots.first())
                 profile.status = 'failed'
                 profile.task_ids = []
