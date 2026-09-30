@@ -28,7 +28,7 @@ valid_web_configs = set(default_web_config.keys())
 
 class AccountModel(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='crawler_accounts')
-    url = models.URLField()
+    url = models.URLField(max_length=2000)
     platform = models.CharField(max_length=10, choices=platform_choices)
     config = models.JSONField(blank=True, null=True)
     status = models.CharField(max_length=20, default="requested", choices=account_status_choices)
