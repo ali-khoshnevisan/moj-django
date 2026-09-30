@@ -105,8 +105,8 @@ class TaskUpdateManager(APIView):
         if not profile:
             return
         ProfileModel.objects.filter(pk=profile.pk).update(
-            status=settings.PROFILE_NOT_LOGIN_STATUS,
-            requires_verification=True
+            status='profile-needs-verification',
+            warning_flag=True
         )
 
     def model_determiner(self, worker):
@@ -291,8 +291,8 @@ class TaskUpdateManager(APIView):
     def profile_response(self, profile, status, result):
         if isinstance(profile, ProfileModel):
             if status == settings.PROFILE_NOT_LOGIN_STATUS:
-                profile.status = settings.PROFILE_NOT_LOGIN_STATUS
-                profile.requires_verification = True
+                profile.status = 'profile-needs-verification'
+                profile.warning_flag = True
                 profile.task_id = None
                 profile.last_update = timezone.now()
                 profile.save()

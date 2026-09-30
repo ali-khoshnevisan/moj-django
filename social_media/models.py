@@ -21,6 +21,7 @@ social_media_choices = (
 profile_status_choices = (
     ('requested', 'requested'),
     ("profile-is-not-login", "profile-is-not-login"),
+    ("profile-needs-verification", "profile-needs-verification"),
     ('pending', 'pending'),
     ('added', 'added'),
     ('check-2fa-code', 'check-2fa-code'),
@@ -56,9 +57,7 @@ class ProfileModel(models.Model):
     sleep_to = models.TimeField(blank=True)
     task_id = models.UUIDField(blank=True, null=True)
     proxy = models.JSONField(blank=True, null=True)
-    requires_2fa = models.BooleanField(default=False)
-    requires_verification = models.BooleanField(default=False)
-    credentials_valid = models.BooleanField(default=False)
+    warning_flag = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['-last_update']

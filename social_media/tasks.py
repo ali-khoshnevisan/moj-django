@@ -385,7 +385,8 @@ def register_profile_with_service(profile_id):
         )
     except requests.RequestException as e:
         ProfileModel.objects.filter(pk=profile_id).update(
-            status="profile-is-not-login"
+            status="profile-is-not-login",
+            warning_flag=True
         )
         return {"ok": False, "reason": f"request failed: {e}"}
 
@@ -395,7 +396,7 @@ def register_profile_with_service(profile_id):
         if data.get("needs_2fa_code") or data.get('needs_email_code') is True:
             ProfileModel.objects.filter(pk=profile_id).update(
                 status="2fa_required",
-                requires_2fa=True
+                warning_flag=True,
             )
             return {
                 "ok": True,
@@ -404,14 +405,15 @@ def register_profile_with_service(profile_id):
             }
 
         ProfileModel.objects.filter(pk=profile_id).update(
-            status="fetching_profile"
+            status="fetching_profile",
+            warning_flag=False
         )
         return {"ok": True, "status_code": response.status_code}
 
 
     ProfileModel.objects.filter(pk=profile_id).update(
         status="profile-is-not-login",
-        credentials_valid=True
+        warning_flag=True
     )
     return {"ok": False, "status_code": response.status_code, "body": response.text[:500]}
 
@@ -437,7 +439,7 @@ def submit_code_to_service(profile_id, code):
     except requests.RequestException as e:
         ProfileModel.objects.filter(pk=profile_id).update(
             status="profile-is-not-login",
-            credentials_valid=True
+            warning_flag=True
         )
         return {"ok": False, "reason": f"request failed: {e}"}
 
@@ -446,18 +448,19 @@ def submit_code_to_service(profile_id, code):
 
         if data.get("success") is True:
             ProfileModel.objects.filter(pk=profile_id).update(
-                status="fetching_profile"
+                status="fetching_profile",
+                warning_flag=False
             )
             return {
                 "ok": True,
                 "status_code": response.status_code,
             }
-        ProfileModel.objects.filter(pk=profile_id).update(status="profile-is-not-login", credentials_valid=True)
+        ProfileModel.objects.filter(pk=profile_id).update(status="profile-is-not-login", warning_flag=True)
         return {"ok": True, "status_code": response.status_code}
 
     ProfileModel.objects.filter(pk=profile_id).update(
         status="profile-is-not-login",
-        credentials_valid=True
+        warning_flag=True
     )
     return {
         "ok": False,
