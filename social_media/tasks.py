@@ -373,8 +373,8 @@ def register_profile_with_service(profile_id):
         "password": profile.password,
         "totp_secret": profile.totp,
         "proxy": f"vahid2026:vihanbaba2026@127.0.0.1:{profile.proxy["port"]}",
-        "sleep_from": profile.sleep_from,
-        "sleep_to": profile.sleep_to,
+        "sleep_from": profile.sleep_from.strftime("%H:%M"),
+        "sleep_to": profile.sleep_to.strftime("%H:%M"),
     }
 
     try:
