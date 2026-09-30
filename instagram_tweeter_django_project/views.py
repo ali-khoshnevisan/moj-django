@@ -75,6 +75,7 @@ class TaskUpdateManager(APIView):
             print("not valid")
             return Response(res_data.errors, status=400)
         valid_data = res_data.validated_data
+        print('valid_data', valid_data)
 
         task_id = valid_data['task_id']
         worker_type = valid_data['worker_type']
@@ -221,7 +222,6 @@ class TaskUpdateManager(APIView):
             account.status = 'enable'
             account.save()
             for post in result:
-                print('result crawler', post)
                 try:
                     if account.platform == "telegram":
                         _post = PostModel.objects.create(account=account,
