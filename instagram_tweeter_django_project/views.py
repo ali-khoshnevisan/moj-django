@@ -221,6 +221,7 @@ class TaskUpdateManager(APIView):
             account.status = 'enable'
             account.save()
             for post in result:
+                print('result crawler', post)
                 try:
                     if account.platform == "telegram":
                         _post = PostModel.objects.create(account=account,
