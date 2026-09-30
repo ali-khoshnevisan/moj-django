@@ -290,6 +290,7 @@ class TaskUpdateManager(APIView):
                 profile.save()
 
     def profile_response(self, profile, status, result):
+        print('profile response', profile)
         if isinstance(profile, ProfileModel):
             if status == settings.PROFILE_NOT_LOGIN_STATUS:
                 profile.status = 'profile-needs-verification'
