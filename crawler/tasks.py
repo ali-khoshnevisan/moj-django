@@ -28,7 +28,6 @@ def _crawler(platform, pstatus, timer):
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
                                      json={"worker_type": f"{account.platform}-crawler",
                                            "data": {"url": account.url, "config": account.config}}).json()
-            print('crawler response', response)
             task_id = response['task_id']
             account.task_id = task_id
             account.save()

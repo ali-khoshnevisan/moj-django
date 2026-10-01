@@ -525,3 +525,41 @@ class InstagramLoginView(APIView):
 
         finally:
             _release_login_port(port)
+
+
+class BulkRequestActionsView(APIView):
+    permission_classes = [IsActiveUser]
+    MAX_IDS = 500
+
+    def post(self, request):
+        raw_ids = request.data.get("ids")
+        if not isinstance(raw_ids, list) or not raw_ids:
+            return Response({"error": "ids must be a non-empty list"}, status=400)
+        if len(raw_ids) > self.MAX_IDS:
+            return Response({"error": f"at most {self.MAX_IDS} ids per request"}, status=400)
+
+        ids = set()
+        for item in raw_ids:
+            if isinstance(item, int) and not isinstance(item, bool):
+                ids.add(item)
+            elif isinstance(item, str) and item.strip().isdigit():
+                ids.add(int(item))
+            else:
+                return Response({"error": "ids must be integers"}, status=400)
+
+        current = dict(
+            ActionModel.objects.filter(id__in=ids, user=request.user)
+            .values_list("id", "status")
+        )
+        failed_ids = sorted(i for i, s in current.items() if s == "failed")
+
+        updated = ActionModel.objects.filter(
+            id__in=failed_ids, user=request.user, status="failed"
+        ).update(status="requested")
+
+        return Response({
+            "updated": updated,
+            "updated_ids": failed_ids,
+            "skipped": {str(i): s for i, s in current.items() if s != "failed"},
+            "not_found": sorted(ids - current.keys()),
+        })
