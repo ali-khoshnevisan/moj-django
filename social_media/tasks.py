@@ -71,10 +71,11 @@ def update_bot_next_eligible(profile):
 def action_process():
     print("START ACTION SOCIAL MEDIA TASKS MANAGER")
     requested_tasks = ActionModel.objects.filter(status='requested', working=True)
-    # flag = 0
     for task in requested_tasks:
         try:
-            if task.bot.status == "profile-is-not-login":
+            if task.bot.status != "ready":
+                task.status = 'failed'
+                task.save()
                 continue
 
             # if task.send_date > timezone.now():
@@ -85,10 +86,6 @@ def action_process():
             #     continue
 
             # if task.bot.sleep_from < datetime.now().hour < task.bot.sleep_to:
-            #     continue
-
-            # if flag > 5:
-            #     update_bot_next_eligible(task.bot)
             #     continue
 
             medias = []
@@ -108,17 +105,12 @@ def action_process():
                                                     "medias": medias,
                                                     "username": task.bot.username}}).json()
             task_id = response['task_id']
-            # flag += 1
             task.task_id = task_id
             task.status = 'pending'
             task.save()
 
         except Exception as e:
             print(f"[action_process] ERROR on task {task.pk}: {e}")
-            # Task was already flipped to 'pending' above before this
-            # exception — without this, it would be stuck at 'pending'
-            # forever with no completion status, the exact same silent-
-            # stuck-state bug fixed earlier in telegram_worker_task.
             try:
                 ActionModel.objects.filter(pk=task.pk).update(
                     status='failed',
@@ -475,3 +467,10 @@ def submit_code_to_service(profile_id, code):
         "status_code": response.status_code,
         "body": response.text[:500]
     }
+
+
+@shared_task(name="social_media.request_ready_profiles")
+def request_ready_profiles():
+    count = ProfileModel.objects.filter(status="ready").update(status="requested")
+    print(f"[request_ready_profiles] moved {count} profile(s) from 'ready' to 'requested'")
+    return count

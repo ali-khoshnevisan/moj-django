@@ -302,7 +302,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        return CampaignSocialMediaModel.objects.filter(user=self.request.user, is_secondary=False)
+        return CampaignSocialMediaModel.objects.filter(user=self.request.user, is_secondary=False).order_by('id')
 
     def perform_create(self, serializer):
         bots = serializer.validated_data.get('bots', [])

@@ -213,10 +213,10 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Tehran'
 
 CELERY_BEAT_SCHEDULE = {
-    # "refresh-instagram-sessions": {
-    #     "task": "social_media.refresh_instagram_sessions",
-    #     # "schedule": timedelta(minutes=2),
-    #     "schedule": timedelta(hours=1),
+    # "request_ready_profiles": {
+    #     "task": "social_media.request_ready_profiles",
+    #     "schedule": timedelta(hours=12),
+    #     "schedule": crontab(minute=0, hour="*/12"),
     # },
 }
 
