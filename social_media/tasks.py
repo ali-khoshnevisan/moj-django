@@ -469,8 +469,6 @@ def submit_code_to_service(profile_id, code):
     }
 
 
-@shared_task(name="social_media.request_ready_profiles")
+@shared_task
 def request_ready_profiles():
-    count = ProfileModel.objects.filter(status="ready").update(status="requested")
-    print(f"[request_ready_profiles] moved {count} profile(s) from 'ready' to 'requested'")
-    return count
+    return ProfileModel.objects.filter(status='ready').update(status='requested')

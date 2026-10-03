@@ -14,7 +14,7 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from urllib.parse import urljoin
-
+from celery.schedules import crontab
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -213,11 +213,10 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Tehran'
 
 CELERY_BEAT_SCHEDULE = {
-    # "request_ready_profiles": {
-    #     "task": "social_media.request_ready_profiles",
-    #     "schedule": timedelta(hours=12),
-    #     "schedule": crontab(minute=0, hour="*/12"),
-    # },
+    'request_ready_profiles': {
+        'task': 'social_media.tasks.request_ready_profiles',
+        'schedule': crontab(minute=0, hour='*/12'),
+    },
 }
 
 CSRF_TRUSTED_ORIGINS = ["https://46.225.112.201"]

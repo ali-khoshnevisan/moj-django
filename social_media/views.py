@@ -3,6 +3,7 @@ import json
 import random
 import os
 import zipfile
+from urllib.parse import urlparse
 import redis
 from rest_framework import status
 from django.db.models import Max
@@ -295,14 +296,65 @@ class ActionViewSet(viewsets.ModelViewSet):
             "last_post": self.serializer_class(last_post).data if last_post else None
         })
 
+def target_username(target):
+    target = (target or "").strip()
+    if "/" in target:
+        parts = [p for p in urlparse(target).path.split("/") if p]
+        name = parts[0] if parts else target
+    else:
+        name = target
+    return name.lstrip("@").lower()
+
 
 class CampaignViewSet(viewsets.ModelViewSet):
     permission_classes = [IsActiveUser]
     serializer_class = CampaignSerializer
     pagination_class = StandardResultsSetPagination
 
+    def _csv_param(self, name):
+        values = []
+        for raw in self.request.query_params.getlist(name):
+            values.extend(v.strip() for v in raw.split(",") if v.strip())
+        return values
+
+    def _base_queryset(self):
+        return CampaignSocialMediaModel.objects.filter(
+            user=self.request.user, is_secondary=False
+        )
+
     def get_queryset(self):
-        return CampaignSocialMediaModel.objects.filter(user=self.request.user, is_secondary=False).order_by('id')
+        qs = self._base_queryset()
+
+        bot_ids = [int(v) for v in self._csv_param("bots") if v.isdigit()]
+        if bot_ids:
+            qs = qs.filter(bots__id__in=bot_ids).distinct()
+
+        wanted_actions = set(self._csv_param("actions"))
+        wanted_targets = [t.lstrip("@").lower() for t in self._csv_param("targets")]
+
+        if wanted_actions or wanted_targets:
+            matched_ids = []
+            for pk, actions, urls in qs.values_list("id", "actions", "urls"):
+                if wanted_actions and not wanted_actions.intersection(actions or []):
+                    continue
+                if wanted_targets:
+                    names = [target_username(u) for u in (urls or [])]
+                    if not any(w in name for w in wanted_targets for name in names):
+                        continue
+                matched_ids.append(pk)
+            qs = qs.filter(id__in=matched_ids)
+
+        return qs.order_by("id")
+
+    @action(detail=False, methods=["get"], url_path="targets")
+    def targets(self, request):
+        names = set()
+        for urls in self._base_queryset().values_list("urls", flat=True):
+            for url in urls or []:
+                name = target_username(url)
+                if name:
+                    names.add(name)
+        return Response(sorted(names))
 
     def perform_create(self, serializer):
         bots = serializer.validated_data.get('bots', [])
