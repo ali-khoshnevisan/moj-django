@@ -220,6 +220,11 @@ CELERY_BEAT_SCHEDULE = {
     # },
 }
 
+CSRF_TRUSTED_ORIGINS = ["https://46.225.112.201"]
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
 # settings.py
 
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
