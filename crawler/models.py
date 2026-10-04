@@ -109,7 +109,7 @@ web_single_post_status_choices = (
 
 class WebSinglePostModel(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='web_single_posts')
-    url = models.URLField()
+    url = models.URLField(max_length=2000)
     config = models.JSONField()
     title = models.TextField(blank=True, null=True)
     text = models.TextField(blank=True, null=True)
