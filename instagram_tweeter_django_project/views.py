@@ -9,7 +9,6 @@ from django.db.models import Count
 from django.db.models.functions import TruncDate
 from rest_framework.views import APIView, Response
 from rest_framework import serializers
-from rest_framework.permissions import BasePermission
 from ai.models import AIModel
 from crawler.models import (
     AccountModel, PostModel, WebSinglePostModel, TelegramSendPost, TelegramModel,
@@ -19,18 +18,8 @@ from social_media.models import (
     ProfileModel, ActionModel, CampaignSocialMediaModel, PostCampaignModel,
     social_media_choices, profile_status_choices, action_status_choices,
 )
-from accounts.permissions import IsActiveUser
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
-
-class AllowCoreServerIP(BasePermission):
-    def has_permission(self, request, view):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0].strip()
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-
-        return ip == '91.107.232.169'
 
 class TaskSerializer(serializers.Serializer):
     task_id = serializers.CharField()
@@ -42,7 +31,7 @@ class TaskSerializer(serializers.Serializer):
 
 class TaskUpdateManager(APIView):
     authentication_classes = []
-    permission_classes = [AllowCoreServerIP]
+    permission_classes = [AllowAny]
     serializer_class = TaskSerializer
     model_determiner_dict = {
         "chatgpt": AIModel,
@@ -371,13 +360,7 @@ class TaskUpdateManager(APIView):
 
 
 class DashboardSummaryView(APIView):
-    """
-    Single aggregated endpoint for the frontend dashboard/home page, scoped
-    to the requesting user. Pulls counts and a small "recent activity" slice
-    from crawler, social_media, and the current account — avoids the
-    frontend making 5+ separate list calls just to compute totals.
-    """
-    permission_classes = [IsActiveUser]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user

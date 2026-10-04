@@ -13,10 +13,10 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
-# from instagram_tweeter_django_project.views  import AllowCoreServerIP
 from rest_framework.exceptions import PermissionDenied
 from instagrapi import Client
 from instagrapi.exceptions import (
@@ -26,7 +26,6 @@ from instagrapi.exceptions import (
 )
 from .models import ProfileModel, ActionModel, CampaignSocialMediaModel, PostMediaModel
 from .serializers import ProfileSerializer, ActionSerializer, CampaignSerializer
-from accounts.permissions import IsActiveUser
 from .tasks import register_profile_with_service, submit_code_to_service
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -46,7 +45,7 @@ class ProfileFilter(django_filters.FilterSet):
 #     queryset = ProfileLogModel.objects.all()
 #     serializer_class = ProfileLogSerializer
 class SubmitProfileCodeView(APIView):
-    permission_classes = [IsActiveUser]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, id):
         try:
@@ -65,7 +64,7 @@ class SubmitProfileCodeView(APIView):
         return Response({"status": "queued"}, status=202)
 
 class RetryLoginProfileView(APIView):
-    permission_classes = [IsActiveUser]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, id):
         try:
@@ -76,7 +75,7 @@ class RetryLoginProfileView(APIView):
         register_profile_with_service.delay(profile.id)
 
 class ProfileViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsActiveUser]
+    permission_classes = [IsAuthenticated]
     serializer_class = ProfileSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
@@ -228,7 +227,7 @@ class ActionFilter(django_filters.FilterSet):
 
 
 class ActionViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsActiveUser]
+    permission_classes = [IsAuthenticated]
     serializer_class = ActionSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
@@ -307,7 +306,7 @@ def target_username(target):
 
 
 class CampaignViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsActiveUser]
+    permission_classes = [IsAuthenticated]
     serializer_class = CampaignSerializer
     pagination_class = StandardResultsSetPagination
 
@@ -365,7 +364,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
 
 class PostSocialMediaView(APIView):
-    permission_classes = [IsActiveUser]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         bot_id = int(request.data.get("bot"))
@@ -388,7 +387,7 @@ class PostSocialMediaView(APIView):
 
 
 class AddPostMediaView(APIView):
-    permission_classes = [IsActiveUser]
+    permission_classes = [IsAuthenticated]
 
     def put(self, request, action_id):
         try:
@@ -455,7 +454,7 @@ def _release_login_port(port):
 
 
 class InstagramLoginView(APIView):
-    permission_classes = [IsActiveUser]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         username = request.data.get("username")
@@ -580,7 +579,7 @@ class InstagramLoginView(APIView):
 
 
 class BulkRequestActionsView(APIView):
-    permission_classes = [IsActiveUser]
+    permission_classes = [IsAuthenticated]
     MAX_IDS = 500
 
     def post(self, request):
