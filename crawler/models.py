@@ -72,7 +72,7 @@ def upload_post_media_path(instance, filename):
 
 
 class PostModel(models.Model):
-    url = models.URLField()
+    url = models.URLField(max_length=2000)
     account = models.ForeignKey(AccountModel, on_delete=models.CASCADE)
     title = models.TextField(blank=True, null=True)
     text = models.TextField()
