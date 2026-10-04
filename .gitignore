@@ -2,3 +2,7 @@
 db.sqlite3
 .env
 venv
+accounts/migrations
+ai/migrations
+crawler/migrations
+social_media/migrations
