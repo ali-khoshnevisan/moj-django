@@ -2,7 +2,7 @@ from rest_framework.views import APIView, status as http_status
 from rest_framework.response import Response
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import OTPCodeModel, UserModel, ResetPasswordTokenModel
 from .serializers import UserSerializer, AuthTokenSerializer, EmailVerificationSerializer, ChangePasswordSerializer, \
     MyTokenSerializer, ResetPasswordSerializer
@@ -19,6 +19,7 @@ class MyTokenRefreshView(TokenRefreshView):
 
 class UserRegisterView(APIView):
     serializer_class = UserSerializer
+    permission_classes = [AllowAny]
     skip_active_check = True
 
     def post(self, request):
