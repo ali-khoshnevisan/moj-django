@@ -339,6 +339,9 @@ class TaskUpdateManager(APIView):
             task.save()
             return
 
+        if task.status == 'failed':
+            task.error_msg = result['reason']
+
         task.status = status
         task.task_id = None
         task.save()
