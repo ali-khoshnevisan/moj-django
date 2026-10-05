@@ -39,6 +39,7 @@ class UserRegisterView(APIView):
 
 
 class EmailVerificationView(APIView):
+    permission_classes = [AllowAny]
     serializer_class = EmailVerificationSerializer
     skip_active_check = True
 
