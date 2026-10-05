@@ -64,7 +64,6 @@ class TaskUpdateManager(APIView):
             print("not valid")
             return Response(res_data.errors, status=400)
         valid_data = res_data.validated_data
-        print('valid_data', valid_data)
 
         task_id = valid_data['task_id']
         worker_type = valid_data['worker_type']
@@ -280,7 +279,6 @@ class TaskUpdateManager(APIView):
                 profile.save()
 
     def profile_response(self, profile, status, result):
-        print('profile response', profile)
         if isinstance(profile, ProfileModel):
             if status == settings.PROFILE_NOT_LOGIN_STATUS:
                 profile.status = 'profile-needs-verification'
@@ -300,10 +298,9 @@ class TaskUpdateManager(APIView):
                 profile.profile_image = result['avatar']
                 profile.status = 'ready'
                 profile.task_id = None
+                profile.last_update = timezone.now()
                 profile.save()
                 url = result['avatar']
-                print('result', result)
-                print('url', url)
                 if url:
                     try:
                         response = requests.get(url, timeout=15)

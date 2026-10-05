@@ -217,6 +217,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'social_media.tasks.request_ready_profiles',
         'schedule': crontab(minute=0, hour='*/12'),
     },
+    "crawl_telegram_accounts": {
+        "task": "crawler.crawl_telegram_accounts",
+        "schedule": crontab(minute=0, hour="*/2"),
+    },
 }
 
 CSRF_TRUSTED_ORIGINS = ["https://46.225.112.201"]

@@ -257,3 +257,18 @@ def telegram_worker_task(account_id, url):
         except AccountModel.DoesNotExist:
             pass
         return str(e)
+
+@shared_task(name="crawler.crawl_telegram_accounts")
+def crawl_telegram_accounts():
+    accounts = (
+        AccountModel.objects
+        .filter(platform="telegram", task_id__isnull=True)
+        .exclude(status="disable")
+    )
+    count = 0
+    for account in accounts:
+        task = telegram_worker_task.delay(account.id, account.url)
+        AccountModel.objects.filter(pk=account.pk).update(task_id=task.id)
+        count += 1
+    print(f"[crawl_telegram_accounts] queued {count} account(s)")
+    return count
