@@ -34,7 +34,7 @@ def profile_process():
     for profile in requested_profiles:
         try:
             response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
-                                     json={"worker_type": f"{profile.social_media}-profile",
+                                     json={"worker_type": f"{profile.social_media}-target-profile",
                                            "data": {"url": profile.url,
                                                     "username": profile.username}}).json()
             task_id = response['task_id']
@@ -136,7 +136,7 @@ def crawl_campaign():
             task_ids = []
             for url in campaign.urls:
                 response = requests.post(settings.CREATE_TASK_CORE_SERVICE_URL,
-                                         json={"worker_type": f"{campaign.social_media}-target-profile",
+                                         json={"worker_type": f"{campaign.social_media}-profile",
                                                "data": {"url": url,
                                                         "username": bot.username}}).json()
                 task_id = response['task_id']
