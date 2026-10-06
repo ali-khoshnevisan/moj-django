@@ -41,7 +41,8 @@ class TaskUpdateManager(APIView):
         "web-crawler-single-post": PostModel,
         "web-crawler-single-post-test": WebSinglePostModel,
         "instagram-check-profile": ProfileModel,
-        "instagram-profile": [ProfileModel, CampaignSocialMediaModel],
+        "instagram-profile": ProfileModel,
+        "instagram-target-profile": CampaignSocialMediaModel,
         "twitter-check-profile": ProfileModel,
         "twitter-profile": ProfileModel,
         "instagram-like": ActionModel,
@@ -150,6 +151,10 @@ class TaskUpdateManager(APIView):
                 return self.check_profile_response
             case "instagram-profile":
                 return self.profile_response
+            case "instagram-target-profile":
+                return self.target_profile_response
+            case "twitter-target-profile":
+                return self.target_profile_response
             case "twitter-profile":
                 return self.profile_response
             case "instagram-like":
@@ -279,56 +284,56 @@ class TaskUpdateManager(APIView):
                 profile.save()
 
     def profile_response(self, profile, status, result):
-        if isinstance(profile, ProfileModel):
-            if status == settings.PROFILE_NOT_LOGIN_STATUS:
-                profile.status = 'profile-needs-verification'
-                profile.warning_flag = True
-                profile.task_id = None
-                profile.last_update = timezone.now()
-                profile.save()
-            elif status == settings.FAILED_CORE_TASK_STATUS:
-                profile.task_id = None
-                profile.last_update = timezone.now()
-                profile.save()
-            else:
-                profile.followers = result['followers']
-                profile.followings = result['following']
-                profile.description = result['bio']
-                profile.posts_count = result['posts']
-                profile.profile_image = result['avatar']
-                profile.status = 'ready'
-                profile.task_id = None
-                profile.last_update = timezone.now()
-                profile.save()
-                url = result['avatar']
-                if url:
-                    try:
-                        response = requests.get(url, timeout=15)
-                        response.raise_for_status()
-                        profile.image.save(
-                            f"profile_{profile.id}.png",
-                            ContentFile(response.content),
-                            save=True
-                        )
-                    except requests.RequestException as e:
-                        print(e)
-                # response = requests.get(url)
-                # profile.image.save(
-                #     f"profile_{profile.id}.png",
-                #     ContentFile(response.content),
-                #     save=True
-                # )
-        elif isinstance(profile, CampaignSocialMediaModel):
-            if status == settings.PROFILE_NOT_LOGIN_STATUS or status == settings.DISABLE_PROFILE_STATUS:
-                self.disable_profile(profile.bots.first())
-                profile.status = 'failed'
-                profile.task_ids = []
-                profile.save()
-            else:
-                profile.posts = list(set(result["last_12_posts"] + profile.posts))
-                if int(result["posts"]) > 0 and len(result["last_12_posts"]) == 0:
-                    profile.status = 'private'
-                profile.save()
+        if status == settings.PROFILE_NOT_LOGIN_STATUS:
+            profile.status = 'profile-needs-verification'
+            profile.warning_flag = True
+            profile.task_id = None
+            profile.last_update = timezone.now()
+            profile.save()
+        elif status == settings.FAILED_CORE_TASK_STATUS:
+            profile.task_id = None
+            profile.last_update = timezone.now()
+            profile.save()
+        else:
+            profile.followers = result['followers']
+            profile.followings = result['following']
+            profile.description = result['bio']
+            profile.posts_count = result['posts']
+            profile.profile_image = result['avatar']
+            profile.status = 'ready'
+            profile.task_id = None
+            profile.last_update = timezone.now()
+            profile.save()
+            url = result['avatar']
+            if url:
+                try:
+                    response = requests.get(url, timeout=15)
+                    response.raise_for_status()
+                    profile.image.save(
+                        f"profile_{profile.id}.png",
+                        ContentFile(response.content),
+                        save=True
+                    )
+                except requests.RequestException as e:
+                    print(e)
+            # response = requests.get(url)
+            # profile.image.save(
+            #     f"profile_{profile.id}.png",
+            #     ContentFile(response.content),
+            #     save=True
+            # )
+
+    def target_profile_response(self, profile, status, result):
+        if status == settings.PROFILE_NOT_LOGIN_STATUS or status == settings.DISABLE_PROFILE_STATUS:
+            self.disable_profile(profile.bots.first())
+            profile.status = 'failed'
+            profile.task_ids = []
+            profile.save()
+        else:
+            profile.posts = list(set(result["last_12_posts"] + profile.posts))
+            if int(result["posts"]) > 0 and len(result["last_12_posts"]) == 0:
+                profile.status = 'private'
+            profile.save()
 
     def action_response(self, task, status, result):
         print('action result', result)
