@@ -42,7 +42,7 @@ class TaskUpdateManager(APIView):
         "web-crawler-single-post-test": WebSinglePostModel,
         "instagram-check-profile": ProfileModel,
         "instagram-target-profile": ProfileModel,
-        "instagram-profile": CampaignSocialMediaModel,
+        "instagram-profile": [ProfileModel, CampaignSocialMediaModel],
         "twitter-check-profile": ProfileModel,
         "twitter-profile": ProfileModel,
         "instagram-like": ActionModel,
@@ -102,6 +102,22 @@ class TaskUpdateManager(APIView):
 
     def model_determiner(self, worker):
         return self.model_determiner_dict.get(worker)
+
+    def find_obj(self, model, task_id):
+        if hasattr(model, "task_ids"):
+            for obj in model.objects.filter(status="pending"):
+                task_ids = list(obj.task_ids or [])
+                if task_id in task_ids:
+                    task_ids.remove(task_id)
+                    obj.task_ids = task_ids
+                    obj.save()
+                    return obj
+            return None
+
+        try:
+            return model.objects.get(task_id=task_id)
+        except Exception as e:
+            print(e)
 
     def find_obj(self, model, task_id):
         if isinstance(model, list):
