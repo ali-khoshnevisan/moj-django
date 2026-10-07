@@ -338,6 +338,7 @@ class TaskUpdateManager(APIView):
 
     def action_response(self, task, status, result):
         print('action result', result)
+        print('action status', status)
         if status == settings.DISABLE_PROFILE_STATUS:
             self.disable_profile(task.bot)
             task.status = 'failed'
