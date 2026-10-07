@@ -42,7 +42,7 @@ class TaskUpdateManager(APIView):
         "web-crawler-single-post-test": WebSinglePostModel,
         "instagram-check-profile": ProfileModel,
         "instagram-target-profile": ProfileModel,
-        "instagram-profile": [ProfileModel, CampaignSocialMediaModel],
+        "instagram-profile": CampaignSocialMediaModel,
         "twitter-check-profile": ProfileModel,
         "twitter-profile": ProfileModel,
         "instagram-like": ActionModel,
