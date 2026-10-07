@@ -41,8 +41,8 @@ class TaskUpdateManager(APIView):
         "web-crawler-single-post": PostModel,
         "web-crawler-single-post-test": WebSinglePostModel,
         "instagram-check-profile": ProfileModel,
-        "instagram-profile": ProfileModel,
-        "instagram-target-profile": CampaignSocialMediaModel,
+        "instagram-target-profile": ProfileModel,
+        "instagram-profile": CampaignSocialMediaModel,
         "twitter-check-profile": ProfileModel,
         "twitter-profile": ProfileModel,
         "instagram-like": ActionModel,
@@ -65,7 +65,6 @@ class TaskUpdateManager(APIView):
             print("not valid")
             return Response(res_data.errors, status=400)
         valid_data = res_data.validated_data
-        print('valid_data', valid_data)
 
         task_id = valid_data['task_id']
         worker_type = valid_data['worker_type']
@@ -338,8 +337,6 @@ class TaskUpdateManager(APIView):
             profile.save()
 
     def action_response(self, task, status, result):
-        print('action result', result)
-        print('action status', status)
         if status == settings.DISABLE_PROFILE_STATUS:
             self.disable_profile(task.bot)
             task.status = 'failed'
