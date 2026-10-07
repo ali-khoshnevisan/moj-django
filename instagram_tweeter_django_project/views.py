@@ -92,11 +92,10 @@ class TaskUpdateManager(APIView):
         return Response({"message": "ok"})
 
     def disable_profile(self, profile):
-        print('profile', profile)
         if not profile:
             return
         ProfileModel.objects.filter(pk=profile.pk).update(
-            status='profile-needs-verification',
+            status='profile-is-not-login',
             warning_flag=True
         )
 
@@ -285,8 +284,8 @@ class TaskUpdateManager(APIView):
 
 
     def target_profile_response(self, profile, status, result):
-        if status == settings.PROFILE_NOT_LOGIN_STATUS:
-            profile.status = 'profile-needs-verification'
+        if status == settings.PROFILE_NOT_LOGIN_STATUS or status == settings.DISABLE_PROFILE_STATUS:
+            profile.status = 'profile-is-not-login'
             profile.warning_flag = True
             profile.task_id = None
             profile.last_update = timezone.now()
@@ -337,7 +336,7 @@ class TaskUpdateManager(APIView):
             profile.save()
 
     def action_response(self, task, status, result):
-        if status == settings.DISABLE_PROFILE_STATUS:
+        if status == settings.DISABLE_PROFILE_STATUS or status == settings.PROFILE_NOT_LOGIN_STATUS:
             self.disable_profile(task.bot)
             task.status = 'failed'
             task.task_id = None
