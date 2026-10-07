@@ -119,34 +119,6 @@ class TaskUpdateManager(APIView):
         except Exception as e:
             print(e)
 
-    def find_obj(self, model, task_id):
-        if isinstance(model, list):
-            for m in model:
-                if hasattr(m, "task_id"):
-                    try:
-                        return m.objects.get(task_id=task_id)
-                    except Exception as e:
-                        print(e)
-                else:
-                    try:
-                        for obj in m.objects.all():
-                            if task_id in (obj.task_ids or []):
-                                task_ids = list(obj.task_ids)
-                                task_ids.remove(task_id)
-
-                                obj.task_ids = task_ids
-                                obj.save()
-
-                                return obj
-                    except Exception as e:
-                        print(e)
-
-        else:
-            try:
-                return model.objects.get(task_id=task_id)
-            except Exception as e:
-                print(e)
-
     def find_method(self, worker):
         match worker:
             case "chatgpt":
